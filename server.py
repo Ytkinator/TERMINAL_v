@@ -275,6 +275,10 @@ class TerminalHandler(http.server.SimpleHTTPRequestHandler):
             self._handle_rental_lookup_proxy()
         elif self.path.startswith('/api/rental/orders/') and self.path.endswith('/pay'):
             self._handle_rental_pay_proxy()
+        elif self.path == '/api/groups/catalog':
+            self._handle_group_catalog_proxy()
+        elif self.path == '/api/groups/pay':
+            self._handle_group_pay_proxy()
         else:
             self.send_error(404)
 
@@ -495,6 +499,63 @@ class TerminalHandler(http.server.SimpleHTTPRequestHandler):
             except urllib.error.HTTPError as e:
                 status = e.code
                 resp_body = e.read()
+
+            self.send_response(status)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(resp_body)
+            print(f"[{log_prefix}] Backend {status}, {len(resp_body)} bytes")
+
+        except Exception as e:
+            self.send_response(502)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'error': True,
+                'message': str(e)
+            }).encode())
+            print(f"[{log_prefix}] Error: {e}")
+
+    def _handle_group_catalog_proxy(self):
+        """Proxy terminal group catalog — injects terminal_code from .env."""
+        self._proxy_group_request('/api/v1/groups/terminal/catalog', drain_body=True, log_prefix='GROUP CATALOG')
+
+    def _handle_group_pay_proxy(self):
+        """Proxy terminal group booking/payment — injects terminal_code from .env."""
+        self._proxy_group_request('/api/v1/groups/terminal/pay', log_prefix='GROUP PAY')
+
+    def _proxy_group_request(self, backend_path, drain_body=False, log_prefix='GROUP'):
+        import urllib.error
+        import urllib.request
+
+        try:
+            length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(length) if length > 0 else b''
+            data = {} if drain_body else (json.loads(body) if body else {})
+            data['terminal_code'] = TERMINAL_CODE
+
+            payload = json.dumps(data).encode()
+
+            req = urllib.request.Request(
+                backend_api_url(backend_path),
+                data=payload,
+                headers={'Content-Type': 'application/json'},
+                method='POST'
+            )
+
+            try:
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    status = resp.status
+                    resp_body = resp.read()
+            except urllib.error.HTTPError as e:
+                status = e.code
+                resp_body = e.read()
+
+            try:
+                resp_data = json.loads(resp_body.decode('utf-8'))
+                resp_body = json.dumps(cache_backend_asset_urls(resp_data), ensure_ascii=False).encode('utf-8')
+            except Exception as e:
+                print(f"[{log_prefix}] Asset cache skipped: {e}")
 
             self.send_response(status)
             self.send_header('Content-Type', 'application/json')

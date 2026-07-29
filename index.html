@@ -203,6 +203,15 @@
           </div>
         </section>
 
+        <!-- Групповые занятия -->
+        <section class="terminal-group-section" id="terminal-group-section" style="display:none">
+          <h3 class="section-title" id="terminal-group-title">Групповые занятия</h3>
+          <button class="terminal-group-action" id="terminal-group-open-btn" type="button" onclick="handleGroupSectionClick()">
+            <i data-lucide="users" class="terminal-rental-action-icon"></i>
+            <span>Выбрать занятие</span>
+          </button>
+        </section>
+
         <!-- Спейсер -->
         <div class="main-spacer"></div>
 
@@ -627,6 +636,31 @@
       </div>
     </div>
 
+    <!-- Групповые занятия -->
+    <div class="screen" id="screen-groups">
+      <header class="header header--inner">
+        <div class="header-left">
+          <button class="back-btn" onclick="navigateTo('main')"><i data-lucide="arrow-left"></i></button>
+          <img src="images/VG_logo_masked.svg" class="header-logo-img" alt="Воробьёвы Горы">
+        </div>
+        <div class="header-right">
+          <button class="lang-btn" onclick="toggleLangDropdown(event)"><img class="lang-current-flag" src="images/flags/ru.svg" alt="Lang"></button>
+        </div>
+      </header>
+
+      <div class="groups-content">
+        <div class="groups-title-row">
+          <span class="groups-title" id="groups-screen-title">Групповые занятия</span>
+          <button class="groups-refresh-btn" type="button" onclick="loadTerminalGroups()">
+            <i data-lucide="refresh-cw"></i>
+          </button>
+        </div>
+        <div class="groups-date-tabs" id="groups-date-tabs"></div>
+        <div class="groups-list" id="groups-list"></div>
+        <p class="groups-state" id="groups-state"></p>
+      </div>
+    </div>
+
     <!-- Список инструкторов -->
     <div class="screen" id="screen-instructors">
       <header class="header">
@@ -879,6 +913,35 @@
         <div class="rental-client-actions">
           <button class="rental-client-secondary" type="button" onclick="closeRentalClientForm()">Отмена</button>
           <button class="rental-client-primary" type="submit">Создать</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="rental-client-modal" id="group-client-modal">
+      <form class="rental-client-card group-client-card" onsubmit="submitGroupClientForm(event)">
+        <div class="rental-client-header">
+          <h2>Запись на занятие</h2>
+          <button class="rental-client-close" type="button" onclick="closeGroupClientForm()">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="group-client-summary" id="group-client-summary"></div>
+        <label class="rental-client-field">
+          <span>Имя клиента</span>
+          <input id="group-client-name" type="text" autocomplete="name" maxlength="255">
+        </label>
+        <label class="rental-client-field">
+          <span>Телефон</span>
+          <input id="group-client-phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="255">
+        </label>
+        <label class="group-age-toggle">
+          <input id="group-client-child" type="checkbox">
+          <span>Ребенок</span>
+        </label>
+        <p class="rental-client-error" id="group-client-error"></p>
+        <div class="rental-client-actions">
+          <button class="rental-client-secondary" type="button" onclick="closeGroupClientForm()">Отмена</button>
+          <button class="rental-client-primary" type="submit">Продолжить</button>
         </div>
       </form>
     </div>

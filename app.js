@@ -24,6 +24,13 @@ var TERMINAL_RENTAL_SECTION_TITLE = 'Прокат';
 var TERMINAL_RENTAL_CREATE_ENABLED = false;
 var TERMINAL_RENTAL_PAYMENT_ENABLED = false;
 var pendingRentalPaymentOrder = null;
+var TERMINAL_GROUP_SECTION_ENABLED = false;
+var TERMINAL_GROUP_SECTION_TITLE = 'Групповые занятия';
+var TERMINAL_GROUP_PAYMENT_ENABLED = true;
+var TERMINAL_GROUP_FREE_BOOKING_ENABLED = true;
+var loadedGroups = [];
+var selectedGroupDate = '';
+var pendingGroupBooking = null;
 var TERMINAL_CAROUSEL_ENABLED = false;
 var TERMINAL_CAROUSEL_IMAGES = [];
 var TERMINAL_SPLASH_IMAGE = '';
@@ -295,6 +302,34 @@ function applyRentalSectionSettings() {
   }
 }
 
+function applyGroupSectionSettings() {
+  var section = document.getElementById('terminal-group-section');
+  var title = document.getElementById('terminal-group-title');
+  var screenTitle = document.getElementById('groups-screen-title');
+
+  if (title) {
+    title.textContent = TERMINAL_GROUP_SECTION_TITLE || 'Групповые занятия';
+  }
+
+  if (screenTitle) {
+    screenTitle.textContent = TERMINAL_GROUP_SECTION_TITLE || 'Групповые занятия';
+  }
+
+  if (section) {
+    section.style.display = TERMINAL_GROUP_SECTION_ENABLED ? '' : 'none';
+  }
+}
+
+function handleGroupSectionClick() {
+  if (!TERMINAL_GROUP_SECTION_ENABLED) {
+    showAlert('Групповые занятия отключены');
+    return;
+  }
+
+  navigateTo('groups');
+  loadTerminalGroups();
+}
+
 function handleRentalCreateClick() {
   if (!TERMINAL_RENTAL_CREATE_ENABLED) {
     showAlert('Создание проката отключено');
@@ -486,6 +521,347 @@ function startRentalOrderPayment(order) {
   payByCard();
 }
 
+function loadTerminalGroups() {
+  var stateEl = document.getElementById('groups-state');
+  var listEl = document.getElementById('groups-list');
+
+  if (stateEl) stateEl.textContent = 'Загружаем занятия...';
+  if (listEl) listEl.innerHTML = '';
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', LOCAL_SERVER + '/api/groups/catalog', true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.timeout = 15000;
+  xhr.onload = function() {
+    try {
+      var data = JSON.parse(xhr.responseText);
+      if (xhr.status >= 400 || data.status === 'error') {
+        throw new Error(data.message || 'Не удалось загрузить групповые занятия');
+      }
+
+      TERMINAL_GROUP_SECTION_ENABLED = data.enabled === true || data.group_section_enabled === true;
+      TERMINAL_GROUP_SECTION_TITLE = data.title || data.group_section_title || TERMINAL_GROUP_SECTION_TITLE;
+      TERMINAL_GROUP_PAYMENT_ENABLED = data.payment_enabled !== false;
+      TERMINAL_GROUP_FREE_BOOKING_ENABLED = data.free_booking_enabled !== false;
+      loadedGroups = Array.isArray(data.groups) ? data.groups : [];
+      applyGroupSectionSettings();
+      renderGroupDates();
+      renderGroups();
+    } catch (e) {
+      console.error('[GROUPS] Catalog failed:', e);
+      loadedGroups = [];
+      renderGroupDates();
+      renderGroups(e.message || 'Ошибка загрузки групп');
+    }
+  };
+  xhr.onerror = function() {
+    loadedGroups = [];
+    renderGroupDates();
+    renderGroups('Ошибка связи с сервером');
+  };
+  xhr.ontimeout = function() {
+    loadedGroups = [];
+    renderGroupDates();
+    renderGroups('Таймаут сервера');
+  };
+  xhr.send('{}');
+}
+
+function renderGroupDates() {
+  var tabsEl = document.getElementById('groups-date-tabs');
+  if (!tabsEl) return;
+
+  var dates = [];
+  loadedGroups.forEach(function(group) {
+    if (group.date && dates.indexOf(group.date) === -1) {
+      dates.push(group.date);
+    }
+  });
+
+  if (dates.length > 0 && dates.indexOf(selectedGroupDate) === -1) {
+    selectedGroupDate = dates[0];
+  }
+
+  if (dates.length === 0) {
+    selectedGroupDate = '';
+  }
+
+  tabsEl.innerHTML = '';
+  dates.forEach(function(date) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'groups-date-tab' + (date === selectedGroupDate ? ' active' : '');
+    btn.textContent = formatGroupDate(date);
+    btn.onclick = function() {
+      selectedGroupDate = date;
+      renderGroupDates();
+      renderGroups();
+    };
+    tabsEl.appendChild(btn);
+  });
+}
+
+function renderGroups(errorMessage) {
+  var listEl = document.getElementById('groups-list');
+  var stateEl = document.getElementById('groups-state');
+  if (!listEl || !stateEl) return;
+
+  listEl.innerHTML = '';
+
+  if (errorMessage) {
+    stateEl.textContent = errorMessage;
+    return;
+  }
+
+  var visibleGroups = loadedGroups.filter(function(group) {
+    return !selectedGroupDate || group.date === selectedGroupDate;
+  });
+
+  if (visibleGroups.length === 0) {
+    stateEl.textContent = 'Нет доступных групповых занятий';
+    return;
+  }
+
+  stateEl.textContent = '';
+  visibleGroups.forEach(function(group) {
+    var card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'group-card';
+    card.onclick = function() { openGroupClientForm(group); };
+
+    var imageStyle = group.image_url ? ' style="background-image:url(\'' + escapeAttr(group.image_url) + '\')"' : '';
+    var seatsText = group.free_seats === null ? 'Места есть' : 'Свободно: ' + group.free_seats;
+    var description = group.short_description || group.online_description || '';
+    var meta = [group.trainer_name, group.implement_name].filter(Boolean).join(' · ');
+    var priceText = parseInt(group.price || 0) > 0 ? formatPrice(parseInt(group.price || 0)) + ' ₽' : 'Бесплатно';
+
+    card.innerHTML =
+      '<div class="group-card__image"' + imageStyle + '></div>' +
+      '<div class="group-card__body">' +
+        '<div class="group-card__time">' + escapeHtml(group.start_time || '') + '–' + escapeHtml(group.fin_time || '') + '</div>' +
+        '<div class="group-card__title">' + escapeHtml(group.name || group.template_name || 'Групповое занятие') + '</div>' +
+        (meta ? '<div class="group-card__meta">' + escapeHtml(meta) + '</div>' : '') +
+        (description ? '<div class="group-card__description">' + escapeHtml(description) + '</div>' : '') +
+        '<div class="group-card__bottom">' +
+          '<span class="group-card__price">' + priceText + '</span>' +
+          '<span class="group-card__seats">' + escapeHtml(seatsText) + '</span>' +
+        '</div>' +
+      '</div>';
+
+    listEl.appendChild(card);
+  });
+
+  lucide.createIcons();
+}
+
+function openGroupClientForm(group) {
+  var price = parseInt(group.price || 0);
+
+  if (price > 0 && !TERMINAL_GROUP_PAYMENT_ENABLED) {
+    showAlert('Оплата групп отключена');
+    return;
+  }
+
+  if (price === 0 && !TERMINAL_GROUP_FREE_BOOKING_ENABLED) {
+    showAlert('Бесплатная запись отключена');
+    return;
+  }
+
+  pendingGroupBooking = { group: group, clientName: '', clientPhone: '', isChild: false };
+
+  var modal = document.getElementById('group-client-modal');
+  var summary = document.getElementById('group-client-summary');
+  var nameInput = document.getElementById('group-client-name');
+  var phoneInput = document.getElementById('group-client-phone');
+  var childInput = document.getElementById('group-client-child');
+  var errorEl = document.getElementById('group-client-error');
+
+  if (summary) {
+    summary.textContent = (group.name || 'Групповое занятие') + ' · ' + formatGroupDate(group.date) + ' · ' +
+      (group.start_time || '') + '–' + (group.fin_time || '') + ' · ' + (price > 0 ? formatPrice(price) + ' ₽' : 'Бесплатно');
+  }
+  if (nameInput) nameInput.value = '';
+  if (phoneInput) phoneInput.value = '';
+  if (childInput) childInput.checked = false;
+  if (errorEl) errorEl.textContent = '';
+  if (modal) modal.classList.add('active');
+
+  setTimeout(function() {
+    if (nameInput) nameInput.focus();
+  }, 50);
+}
+
+function closeGroupClientForm() {
+  var modal = document.getElementById('group-client-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function submitGroupClientForm(event) {
+  if (event) event.preventDefault();
+  if (!pendingGroupBooking || !pendingGroupBooking.group) {
+    closeGroupClientForm();
+    return;
+  }
+
+  var nameInput = document.getElementById('group-client-name');
+  var phoneInput = document.getElementById('group-client-phone');
+  var childInput = document.getElementById('group-client-child');
+  var errorEl = document.getElementById('group-client-error');
+  var clientName = nameInput ? nameInput.value.trim() : '';
+  var clientPhone = phoneInput ? phoneInput.value.trim() : '';
+
+  if (!clientName || !clientPhone) {
+    if (errorEl) errorEl.textContent = 'Укажите имя и телефон клиента';
+    return;
+  }
+
+  pendingGroupBooking.clientName = clientName;
+  pendingGroupBooking.clientPhone = clientPhone;
+  pendingGroupBooking.isChild = childInput ? childInput.checked : false;
+  closeGroupClientForm();
+
+  var group = pendingGroupBooking.group;
+  var price = parseInt(group.price || 0);
+
+  if (price <= 0) {
+    pendingCartItems = [{ name: group.name || 'Групповое занятие', price: 0, qty: 1 }];
+    pendingCartTotal = 0;
+    paymentSourceScreen = 'group';
+    createTerminalGroupBooking('Без оплаты');
+    return;
+  }
+
+  paymentSourceScreen = 'group';
+  pendingCartItems = [{ name: group.name || 'Групповое занятие', price: price, qty: 1 }];
+  pendingCartTotal = price;
+  renderPaymentSummary();
+  navigateTo('payment');
+  payByCard();
+}
+
+function createTerminalGroupBooking(paymentMethod) {
+  if (!pendingGroupBooking || !pendingGroupBooking.group) {
+    showAlert('Группа не выбрана');
+    goBackFromPayment();
+    return;
+  }
+
+  var group = pendingGroupBooking.group;
+  var paymentCode = generatePaymentCode();
+  lastPaymentCode = paymentCode;
+  lastPaymentMethod = paymentMethod;
+
+  showPaymentLoader('Подтверждаем запись на занятие...');
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', LOCAL_SERVER + '/api/groups/pay', true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.timeout = 15000;
+  xhr.onload = function() {
+    hidePaymentLoader();
+    try {
+      var data = JSON.parse(xhr.responseText);
+      if (xhr.status >= 400 || data.status !== 'ok') {
+        throw new Error(data.message || 'Не удалось записаться на занятие');
+      }
+
+      printGroupTicket(data.contract, group, paymentMethod, function() {
+        pendingGroupBooking = null;
+        navigateTo('success');
+        showReceiptInline();
+        loadTerminalGroups();
+      });
+    } catch (e) {
+      console.error('[GROUPS] Pay failed:', e);
+      showAlert(e.message || 'Ошибка записи на занятие');
+      goBackFromPayment();
+    }
+  };
+  xhr.onerror = function() {
+    hidePaymentLoader();
+    showAlert('Ошибка связи с сервером');
+    goBackFromPayment();
+  };
+  xhr.ontimeout = function() {
+    hidePaymentLoader();
+    showAlert('Таймаут сервера');
+    goBackFromPayment();
+  };
+  xhr.send(JSON.stringify({
+    terminal_order_id: 'GROUP-' + Date.now().toString(36).toUpperCase(),
+    terminal_payment_code: paymentCode,
+    group_id: group.id,
+    client_name: pendingGroupBooking.clientName,
+    client_phone: pendingGroupBooking.clientPhone,
+    is_child: pendingGroupBooking.isChild,
+    sum: parseInt(group.price || 0),
+    payment_type: paymentMethod === 'Без оплаты' ? 8 : 1
+  }));
+}
+
+function printGroupTicket(contract, group, paymentMethod, onDone) {
+  var title = group.name || 'Групповое занятие';
+  var price = parseInt(group.price || 0);
+  var ticket = TicketService.createTicket([
+    { name: title, price: price, qty: 1 }
+  ], price, paymentMethod);
+
+  ticket.title = 'Групповое занятие';
+  ticket.type = title + ' · ' + formatGroupDate(group.date) + ' ' + (group.start_time || '');
+  ticket.number = contract && contract.surrogate_id ? contract.surrogate_id : ticket.number;
+  ticket.qrCode = contract && contract.surrogate_id ? contract.surrogate_id : ticket.qrCode;
+
+  try {
+    showPrintLoader();
+    TicketService.printTicket(ticket, function() {
+      hidePrintLoader();
+      if (onDone) onDone();
+    });
+  } catch (e) {
+    hidePrintLoader();
+    console.error('[GROUPS] Print failed:', e);
+    if (onDone) onDone();
+  }
+}
+
+function renderPaymentSummary() {
+  var payTotalEl = document.getElementById('pay-total-value');
+  if (payTotalEl) payTotalEl.textContent = formatPrice(pendingCartTotal) + ' ₽';
+
+  var orderItems = document.getElementById('pay-order-items');
+  if (!orderItems) return;
+
+  orderItems.innerHTML = '';
+  pendingCartItems.forEach(function(item) {
+    var row = document.createElement('div');
+    row.className = 'pay-order-row';
+    row.innerHTML = '<div class="pay-order-row-name"><span class="pay-order-dot"></span><span class="pay-order-row-label">' +
+      escapeHtml(item.name) + ' × ' + item.qty + '</span></div><span class="pay-order-row-price">' +
+      formatPrice(item.price * item.qty) + ' ₽</span>';
+    orderItems.appendChild(row);
+  });
+}
+
+function formatGroupDate(dateValue) {
+  if (!dateValue) return '';
+  var parts = String(dateValue).split('-');
+  if (parts.length !== 3) return String(dateValue);
+  return parts[2] + '.' + parts[1];
+}
+
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value).replace(/`/g, '&#096;');
+}
+
 function updateMainCategoryCards(categories) {
   applyTicketSectionSettings();
 
@@ -558,8 +934,15 @@ function loadCategories() {
         : 'Прокат';
       TERMINAL_RENTAL_CREATE_ENABLED = data.rental_create_enabled === true;
       TERMINAL_RENTAL_PAYMENT_ENABLED = data.rental_payment_enabled === true;
+      TERMINAL_GROUP_SECTION_ENABLED = data.group_section_enabled === true;
+      TERMINAL_GROUP_SECTION_TITLE = (typeof data.group_section_title === 'string' && data.group_section_title.trim())
+        ? data.group_section_title.trim()
+        : 'Групповые занятия';
+      TERMINAL_GROUP_PAYMENT_ENABLED = data.group_payment_enabled !== false;
+      TERMINAL_GROUP_FREE_BOOKING_ENABLED = data.group_free_booking_enabled !== false;
       applyTicketSectionSettings();
       applyRentalSectionSettings();
+      applyGroupSectionSettings();
       populateMainBannerCarousel();
       TERMINAL_SPLASH_IMAGE = getImageSource(data.splash_image || '');
       applySplashImage();
@@ -803,6 +1186,7 @@ const screenMap = {
   'museum': 'screen-museum',
   'skypark': 'screen-skypark',
   'rental': 'screen-rental',
+  'groups': 'screen-groups',
   'instructors': 'screen-instructors',
   'payment': 'screen-payment',
   'sbp': 'screen-sbp',
@@ -822,7 +1206,7 @@ function navigateTo(screenName) {
   const target = document.getElementById(targetId);
   if (target) {
     target.classList.add('active');
-    target.querySelectorAll('.main-content, .topup-wrap, .tkt-scroll, .tkt-card, .rent-content, .instructors-content')
+    target.querySelectorAll('.main-content, .topup-wrap, .tkt-scroll, .tkt-card, .rent-content, .groups-content, .instructors-content')
       .forEach(el => el.scrollTop = 0);
   }
 
@@ -832,6 +1216,7 @@ function navigateTo(screenName) {
   if (screenName === 'museum') resetScreen('screen-museum', 'museum-total');
   if (screenName === 'skypark') resetScreen('screen-skypark', 'skypark-total');
   if (screenName === 'rental') resetRental();
+  if (screenName === 'groups') renderGroups();
 
   // Reset language to Russian when returning to splash
   if (screenName === 'splash' && window.i18n && i18n.getCurrentLang() !== 'ru') {
@@ -1411,6 +1796,11 @@ function goBackFromPayment() {
     return;
   }
 
+  if (paymentSourceScreen === 'group') {
+    navigateTo('groups');
+    return;
+  }
+
   if (paymentSourceScreen) {
     navigateTo(paymentSourceScreen);
   } else {
@@ -1644,6 +2034,11 @@ function registerTicketsInEskimos(paymentCode, callback) {
 function completePayment(paymentMethod) {
   if (paymentSourceScreen === 'rental-order') {
     completeRentalOrderPayment(paymentMethod);
+    return;
+  }
+
+  if (paymentSourceScreen === 'group') {
+    createTerminalGroupBooking(paymentMethod);
     return;
   }
 

@@ -608,17 +608,23 @@ body {
   gap: 14px;
 }
 
-.terminal-rental-section .section-title {
+.terminal-rental-section .section-title,
+.terminal-group-section .section-title {
   margin-bottom: 0;
 }
 
-.terminal-rental-actions {
+.terminal-rental-actions,
+.terminal-group-section {
   display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
 
-.terminal-rental-action {
+.terminal-rental-actions {
+  grid-template-columns: 1fr 1fr;
+}
+
+.terminal-rental-action,
+.terminal-group-action {
   height: 120px;
   display: flex;
   align-items: center;
@@ -635,13 +641,15 @@ body {
   transition: transform 0.15s, border-color 0.2s, box-shadow 0.3s;
 }
 
-.terminal-rental-action:hover {
+.terminal-rental-action:hover,
+.terminal-group-action:hover {
   border-color: var(--accent-light);
   transform: translateY(-2px);
   box-shadow: 0 8px 32px rgba(212,45,90,0.15);
 }
 
-.terminal-rental-action:active {
+.terminal-rental-action:active,
+.terminal-group-action:active {
   transform: scale(0.97);
 }
 
@@ -649,6 +657,180 @@ body {
   width: 34px;
   height: 34px;
   color: var(--accent-light);
+}
+
+/* === Group lessons === */
+.groups-content {
+  height: calc(100% - 112px);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 28px 34px 40px;
+  color: #fff;
+  overflow: hidden;
+}
+
+.groups-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.groups-title {
+  font-size: 34px;
+  font-weight: 900;
+}
+
+.groups-refresh-btn {
+  width: 62px;
+  height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.groups-refresh-btn svg {
+  width: 30px;
+  height: 30px;
+}
+
+.groups-date-tabs {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.groups-date-tab {
+  min-width: 132px;
+  height: 64px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 850;
+}
+
+.groups-date-tab.active {
+  border-color: var(--accent-light);
+  background: var(--accent);
+}
+
+.groups-list {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.group-card {
+  min-height: 220px;
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  text-align: left;
+}
+
+.group-card__image {
+  min-height: 184px;
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(212, 45, 90, 0.34), rgba(255, 255, 255, 0.08));
+  background-size: cover;
+  background-position: center;
+}
+
+.group-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.group-card__time {
+  color: var(--accent-light);
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.group-card__title {
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1.12;
+}
+
+.group-card__meta,
+.group-card__description {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.28;
+}
+
+.group-card__bottom {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.group-card__price {
+  font-size: 26px;
+  font-weight: 900;
+}
+
+.group-card__seats {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 15px;
+  font-weight: 850;
+}
+
+.groups-state {
+  min-height: 28px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.group-client-summary {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 18px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.group-age-toggle {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: #fff;
+  font-size: 24px;
+  font-weight: 850;
+}
+
+.group-age-toggle input {
+  width: 34px;
+  height: 34px;
+  accent-color: var(--accent);
 }
 
 /* === Ski Buttons Grid === */
