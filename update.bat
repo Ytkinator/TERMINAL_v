@@ -9,8 +9,8 @@ echo    Terminal VG - Update
 echo  ========================================
 echo.
 
-set "REPO_URL=https://github.com/YourJeisus/TERMINAL_v.git"
-set "REPO_ZIP_URL=https://github.com/YourJeisus/TERMINAL_v/archive/refs/heads/master.zip"
+set "REPO_URL=https://github.com/Ytkinator/TERMINAL_v.git"
+set "REPO_ZIP_URL=https://github.com/Ytkinator/TERMINAL_v/archive/refs/heads/master.zip"
 set "REPO_ZIP_ROOT=TERMINAL_v-master"
 
 :: --- Check Git ---
@@ -36,6 +36,14 @@ echo  [OK] Git installed.
 :: --- Git update ---
 :do_update
 if not exist "%~dp0.git\" goto :do_clone
+echo.
+echo  Switching repository to Ytkinator...
+git remote get-url origin >nul 2>&1
+if %errorlevel% equ 0 (
+    git remote set-url origin "%REPO_URL%"
+) else (
+    git remote add origin "%REPO_URL%"
+)
 echo.
 echo  Pulling latest changes...
 git pull origin master
