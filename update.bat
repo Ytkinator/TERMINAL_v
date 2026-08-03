@@ -9,7 +9,7 @@ echo    Terminal VG - Update
 echo  ========================================
 echo.
 
-set "REPO_ZIP_URL=https://codeload.github.com/YourJeisus/TERMINAL_v/zip/refs/heads/master"
+set "REPO_ZIP_URL=https://codeload.github.com/Ytkinator/TERMINAL_v/zip/refs/heads/master"
 set "REPO_ZIP_ROOT=TERMINAL_v-master"
 set "REPO_ZIP=%TEMP%\terminal_vg_update.zip"
 set "REPO_DIR=%TEMP%\terminal_vg_update_ext"
