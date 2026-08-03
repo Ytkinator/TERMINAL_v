@@ -203,13 +203,27 @@
           </div>
         </section>
 
-        <!-- Групповые занятия -->
-        <section class="terminal-group-section" id="terminal-group-section" style="display:none">
-          <h3 class="section-title" id="terminal-group-title">Групповые занятия</h3>
-          <button class="terminal-group-action" id="terminal-group-open-btn" type="button" onclick="handleGroupSectionClick()">
-            <i data-lucide="users" class="terminal-rental-action-icon"></i>
-            <span>Выбрать занятие</span>
-          </button>
+        <!-- Служба инструкторов -->
+        <section class="terminal-instructor-section" id="terminal-group-section" style="display:none">
+          <h3 class="section-title" id="terminal-group-title">Служба инструкторов</h3>
+          <div class="terminal-instructor-actions">
+            <button class="terminal-instructor-action" id="terminal-group-open-btn" type="button" onclick="handleGroupSectionClick()">
+              <span class="terminal-instructor-action__image" id="terminal-group-action-image"></span>
+              <span class="terminal-instructor-action__overlay"></span>
+              <span class="terminal-instructor-action__content">
+                <i data-lucide="users" class="terminal-rental-action-icon"></i>
+                <span id="terminal-group-action-title">Групповые занятия</span>
+              </span>
+            </button>
+            <button class="terminal-instructor-action" id="terminal-individual-open-btn" type="button" onclick="handleIndividualLessonsSectionClick()">
+              <span class="terminal-instructor-action__image" id="terminal-individual-action-image"></span>
+              <span class="terminal-instructor-action__overlay"></span>
+              <span class="terminal-instructor-action__content">
+                <i data-lucide="user-round" class="terminal-rental-action-icon"></i>
+                <span id="terminal-individual-action-title">Индивидуальные занятия</span>
+              </span>
+            </button>
+          </div>
         </section>
 
         <!-- Спейсер -->

@@ -24,6 +24,14 @@ var TERMINAL_RENTAL_SECTION_TITLE = 'Прокат';
 var TERMINAL_RENTAL_CREATE_ENABLED = false;
 var TERMINAL_RENTAL_PAYMENT_ENABLED = false;
 var pendingRentalPaymentOrder = null;
+var TERMINAL_INSTRUCTOR_SERVICE_ENABLED = false;
+var TERMINAL_INSTRUCTOR_SERVICE_TITLE = 'Служба инструкторов';
+var TERMINAL_GROUP_LESSONS_ENABLED = false;
+var TERMINAL_GROUP_LESSONS_TITLE = 'Групповые занятия';
+var TERMINAL_GROUP_LESSONS_IMAGE = '';
+var TERMINAL_INDIVIDUAL_LESSONS_ENABLED = false;
+var TERMINAL_INDIVIDUAL_LESSONS_TITLE = 'Индивидуальные занятия';
+var TERMINAL_INDIVIDUAL_LESSONS_IMAGE = '';
 var TERMINAL_GROUP_SECTION_ENABLED = false;
 var TERMINAL_GROUP_SECTION_TITLE = 'Групповые занятия';
 var TERMINAL_GROUP_PAYMENT_ENABLED = true;
@@ -320,28 +328,68 @@ function applyGroupSectionSettings() {
   var section = document.getElementById('terminal-group-section');
   var title = document.getElementById('terminal-group-title');
   var screenTitle = document.getElementById('groups-screen-title');
+  var groupButton = document.getElementById('terminal-group-open-btn');
+  var individualButton = document.getElementById('terminal-individual-open-btn');
+  var groupTitle = document.getElementById('terminal-group-action-title');
+  var individualTitle = document.getElementById('terminal-individual-action-title');
+  var groupImage = document.getElementById('terminal-group-action-image');
+  var individualImage = document.getElementById('terminal-individual-action-image');
 
   if (title) {
-    title.textContent = TERMINAL_GROUP_SECTION_TITLE || 'Групповые занятия';
+    title.textContent = TERMINAL_INSTRUCTOR_SERVICE_TITLE || 'Служба инструкторов';
   }
 
   if (screenTitle) {
-    screenTitle.textContent = TERMINAL_GROUP_SECTION_TITLE || 'Групповые занятия';
+    screenTitle.textContent = TERMINAL_GROUP_LESSONS_TITLE || TERMINAL_GROUP_SECTION_TITLE || 'Групповые занятия';
+  }
+
+  if (groupTitle) {
+    groupTitle.textContent = TERMINAL_GROUP_LESSONS_TITLE || 'Групповые занятия';
+  }
+
+  if (individualTitle) {
+    individualTitle.textContent = TERMINAL_INDIVIDUAL_LESSONS_TITLE || 'Индивидуальные занятия';
+  }
+
+  if (groupButton) {
+    groupButton.style.display = TERMINAL_GROUP_LESSONS_ENABLED ? '' : 'none';
+  }
+
+  if (individualButton) {
+    individualButton.style.display = TERMINAL_INDIVIDUAL_LESSONS_ENABLED ? '' : 'none';
+  }
+
+  if (groupImage) {
+    groupImage.style.backgroundImage = TERMINAL_GROUP_LESSONS_IMAGE ? 'url("' + TERMINAL_GROUP_LESSONS_IMAGE + '")' : '';
+  }
+
+  if (individualImage) {
+    individualImage.style.backgroundImage = TERMINAL_INDIVIDUAL_LESSONS_IMAGE ? 'url("' + TERMINAL_INDIVIDUAL_LESSONS_IMAGE + '")' : '';
   }
 
   if (section) {
-    section.style.display = TERMINAL_GROUP_SECTION_ENABLED ? '' : 'none';
+    var hasVisibleActions = TERMINAL_GROUP_LESSONS_ENABLED || TERMINAL_INDIVIDUAL_LESSONS_ENABLED;
+    section.style.display = TERMINAL_INSTRUCTOR_SERVICE_ENABLED && hasVisibleActions ? '' : 'none';
   }
 }
 
 function handleGroupSectionClick() {
-  if (!TERMINAL_GROUP_SECTION_ENABLED) {
+  if (!TERMINAL_GROUP_LESSONS_ENABLED) {
     showAlert('Групповые занятия отключены');
     return;
   }
 
   navigateTo('groups');
   loadTerminalGroups();
+}
+
+function handleIndividualLessonsSectionClick() {
+  if (!TERMINAL_INDIVIDUAL_LESSONS_ENABLED) {
+    showAlert('Индивидуальные занятия отключены');
+    return;
+  }
+
+  showAlert('Запись на индивидуальные занятия скоро будет доступна');
 }
 
 function handleRentalCreateClick() {
@@ -694,8 +742,12 @@ function loadTerminalGroups() {
         throw new Error(data.message || 'Не удалось загрузить групповые занятия');
       }
 
-      TERMINAL_GROUP_SECTION_ENABLED = data.enabled === true || data.group_section_enabled === true;
-      TERMINAL_GROUP_SECTION_TITLE = data.title || data.group_section_title || TERMINAL_GROUP_SECTION_TITLE;
+      TERMINAL_INSTRUCTOR_SERVICE_ENABLED = data.instructor_service_enabled === true || TERMINAL_INSTRUCTOR_SERVICE_ENABLED;
+      TERMINAL_INSTRUCTOR_SERVICE_TITLE = data.instructor_service_title || TERMINAL_INSTRUCTOR_SERVICE_TITLE;
+      TERMINAL_GROUP_LESSONS_ENABLED = data.enabled === true || data.group_lessons_enabled === true || data.group_section_enabled === true;
+      TERMINAL_GROUP_LESSONS_TITLE = data.title || data.group_lessons_title || data.group_section_title || TERMINAL_GROUP_LESSONS_TITLE;
+      TERMINAL_GROUP_SECTION_ENABLED = TERMINAL_GROUP_LESSONS_ENABLED;
+      TERMINAL_GROUP_SECTION_TITLE = TERMINAL_GROUP_LESSONS_TITLE;
       TERMINAL_GROUP_PAYMENT_ENABLED = data.payment_enabled !== false;
       TERMINAL_GROUP_FREE_BOOKING_ENABLED = data.free_booking_enabled !== false;
       loadedGroups = Array.isArray(data.groups) ? data.groups : [];
@@ -1102,9 +1154,29 @@ function loadCategories() {
         : 'Прокат';
       TERMINAL_RENTAL_CREATE_ENABLED = data.rental_create_enabled === true;
       TERMINAL_RENTAL_PAYMENT_ENABLED = data.rental_payment_enabled === true;
-      TERMINAL_GROUP_SECTION_ENABLED = data.group_section_enabled === true;
-      TERMINAL_GROUP_SECTION_TITLE = (typeof data.group_section_title === 'string' && data.group_section_title.trim())
-        ? data.group_section_title.trim()
+      TERMINAL_INSTRUCTOR_SERVICE_ENABLED = data.instructor_service_enabled === true;
+      TERMINAL_INSTRUCTOR_SERVICE_TITLE = (typeof data.instructor_service_title === 'string' && data.instructor_service_title.trim())
+        ? data.instructor_service_title.trim()
+        : 'Служба инструкторов';
+      TERMINAL_GROUP_LESSONS_ENABLED = data.group_lessons_enabled === true || data.group_section_enabled === true;
+      TERMINAL_GROUP_LESSONS_TITLE = (typeof data.group_lessons_title === 'string' && data.group_lessons_title.trim())
+        ? data.group_lessons_title.trim()
+        : (typeof data.group_section_title === 'string' && data.group_section_title.trim())
+          ? data.group_section_title.trim()
+          : 'Групповые занятия';
+      TERMINAL_GROUP_LESSONS_IMAGE = getImageSource(data.group_lessons_image || '');
+      TERMINAL_INDIVIDUAL_LESSONS_ENABLED = data.individual_lessons_enabled === true;
+      TERMINAL_INDIVIDUAL_LESSONS_TITLE = (typeof data.individual_lessons_title === 'string' && data.individual_lessons_title.trim())
+        ? data.individual_lessons_title.trim()
+        : 'Индивидуальные занятия';
+      TERMINAL_INDIVIDUAL_LESSONS_IMAGE = getImageSource(data.individual_lessons_image || '');
+      TERMINAL_GROUP_SECTION_ENABLED = TERMINAL_GROUP_LESSONS_ENABLED;
+      TERMINAL_GROUP_SECTION_TITLE = TERMINAL_GROUP_LESSONS_TITLE;
+      if (!TERMINAL_INSTRUCTOR_SERVICE_ENABLED && TERMINAL_GROUP_LESSONS_ENABLED) {
+        TERMINAL_INSTRUCTOR_SERVICE_ENABLED = true;
+      }
+      TERMINAL_GROUP_SECTION_TITLE = (typeof TERMINAL_GROUP_SECTION_TITLE === 'string' && TERMINAL_GROUP_SECTION_TITLE.trim())
+        ? TERMINAL_GROUP_SECTION_TITLE.trim()
         : 'Групповые занятия';
       TERMINAL_GROUP_PAYMENT_ENABLED = data.group_payment_enabled !== false;
       TERMINAL_GROUP_FREE_BOOKING_ENABLED = data.group_free_booking_enabled !== false;
