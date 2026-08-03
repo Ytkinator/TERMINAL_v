@@ -188,6 +188,17 @@
           </div>
         </section>
 
+        <!-- Пополнение скипасса -->
+        <section class="terminal-rental-section" id="terminal-skipass-topup-section" style="display:none">
+          <h3 class="section-title" id="terminal-skipass-topup-title">Пополнение скипасса</h3>
+          <div class="terminal-rental-actions">
+            <button class="terminal-rental-action" id="terminal-skipass-topup-open-btn" type="button" onclick="handleSkipassTopupSectionClick()">
+              <i data-lucide="credit-card" class="terminal-rental-action-icon"></i>
+              <span>Пополнить скипасс</span>
+            </button>
+          </div>
+        </section>
+
         <!-- Прокат -->
         <section class="terminal-rental-section" id="terminal-rental-section" style="display:none">
           <h3 class="section-title" id="terminal-rental-title">Прокат</h3>
@@ -199,6 +210,17 @@
             <button class="terminal-rental-action" id="terminal-rental-payment-btn" type="button" onclick="handleRentalPaymentClick()" style="display:none">
               <i data-lucide="qr-code" class="terminal-rental-action-icon"></i>
               <span>Оплатить прокат</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Посещения -->
+        <section class="terminal-rental-section" id="terminal-visit-section" style="display:none">
+          <h3 class="section-title" id="terminal-visit-title">Посещения</h3>
+          <div class="terminal-rental-actions">
+            <button class="terminal-rental-action" id="terminal-visit-open-btn" type="button" onclick="handleVisitSectionClick()">
+              <i data-lucide="calendar-plus" class="terminal-rental-action-icon"></i>
+              <span>Записаться на посещение</span>
             </button>
           </div>
         </section>
@@ -718,6 +740,53 @@
       </div>
     </div>
 
+    <!-- Посещения -->
+    <div class="screen" id="screen-visits">
+      <header class="header">
+        <div class="header-left">
+          <button class="back-btn" onclick="navigateTo('main')"><i data-lucide="arrow-left"></i></button>
+          <img src="images/VG_logo_masked.svg" class="header-logo-img" alt="Воробьёвы Горы">
+        </div>
+        <div class="header-right">
+          <button class="lang-btn" onclick="toggleLangDropdown(event)"><img class="lang-current-flag" src="images/flags/ru.svg" alt="Lang"></button>
+        </div>
+      </header>
+
+      <div class="visits-content">
+        <div class="instructors-title-row">
+          <span class="instructors-title" id="visits-screen-title">Посещения</span>
+        </div>
+
+        <div class="instructor-date-tabs" id="visits-date-tabs"></div>
+
+        <div class="visit-filter-grid">
+          <label class="instructor-filter-field">
+            <span>Локация</span>
+            <select id="visit-location-select" onchange="handleVisitLocationChange()"></select>
+          </label>
+          <label class="instructor-filter-field">
+            <span>Площадка</span>
+            <select id="visit-resource-select" onchange="handleVisitResourceChange()"></select>
+          </label>
+          <label class="instructor-filter-field">
+            <span>Людей</span>
+            <select id="visit-party-size" onchange="handleVisitPartySizeChange()">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="visit-slots-list" id="visit-slots-list"></div>
+        <p class="groups-state" id="visits-state"></p>
+        <button class="groups-back-btn" type="button" onclick="navigateTo('main')" data-i18n="common.back">НАЗАД</button>
+      </div>
+    </div>
+
     <div class="rental-client-modal rental-client-modal--solid" id="instructor-client-modal">
       <form class="rental-client-card rental-client-card--large instructor-client-card" autocomplete="off" onsubmit="submitInstructorClientForm(event)">
         <div class="rental-client-header">
@@ -770,6 +839,66 @@
         <div class="rental-client-keyboard" id="instructor-client-keyboard" aria-label="Экранная клавиатура"></div>
         <div class="rental-client-actions">
           <button class="rental-client-secondary" type="button" onclick="closeInstructorClientForm()">Отмена</button>
+          <button class="rental-client-primary" type="submit">Продолжить</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="rental-client-modal rental-client-modal--solid" id="visit-client-modal">
+      <form class="rental-client-card rental-client-card--large instructor-client-card" autocomplete="off" onsubmit="submitVisitClientForm(event)">
+        <div class="rental-client-header">
+          <h2>Запись на посещение</h2>
+          <button class="rental-client-close" type="button" onclick="closeVisitClientForm()">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="group-client-summary" id="visit-client-summary"></div>
+        <label class="rental-client-field rental-client-field--active" data-visit-client-field="name">
+          <span>ФИО клиента</span>
+          <input
+            id="visit-client-name"
+            type="text"
+            name="visit-client-name-off"
+            autocomplete="new-password"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            inputmode="none"
+            maxlength="255"
+            readonly
+            onfocus="setVisitClientActiveField('name')"
+            onclick="setVisitClientActiveField('name')"
+          >
+        </label>
+        <label class="rental-client-field" data-visit-client-field="phone">
+          <span>Телефон</span>
+          <input
+            id="visit-client-phone"
+            type="tel"
+            name="visit-client-phone-off"
+            autocomplete="new-password"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            inputmode="none"
+            maxlength="18"
+            placeholder="+7 (___) ___-__-__"
+            readonly
+            onfocus="setVisitClientActiveField('phone')"
+            onclick="setVisitClientActiveField('phone')"
+          >
+        </label>
+        <label class="rental-client-field">
+          <span>Возраст</span>
+          <select id="visit-client-age">
+            <option value="adult">Взрослый</option>
+            <option value="child">Ребенок</option>
+          </select>
+        </label>
+        <p class="rental-client-error" id="visit-client-error"></p>
+        <div class="rental-client-keyboard" id="visit-client-keyboard" aria-label="Экранная клавиатура"></div>
+        <div class="rental-client-actions">
+          <button class="rental-client-secondary" type="button" onclick="closeVisitClientForm()">Отмена</button>
           <button class="rental-client-primary" type="submit">Продолжить</button>
         </div>
       </form>

@@ -283,6 +283,16 @@ class TerminalHandler(http.server.SimpleHTTPRequestHandler):
             self._handle_instructor_catalog_proxy()
         elif self.path == '/api/instructors/pay':
             self._handle_instructor_pay_proxy()
+        elif self.path == '/api/visits/catalog':
+            self._handle_visit_catalog_proxy()
+        elif self.path == '/api/visits/availability':
+            self._handle_visit_availability_proxy()
+        elif self.path == '/api/visits/holds':
+            self._handle_visit_hold_proxy()
+        elif self.path.startswith('/api/visits/holds/') and self.path.endswith('/cancel'):
+            self._handle_visit_cancel_proxy()
+        elif self.path.startswith('/api/visits/holds/') and self.path.endswith('/pay'):
+            self._handle_visit_pay_proxy()
         else:
             self.send_error(404)
 
@@ -535,6 +545,35 @@ class TerminalHandler(http.server.SimpleHTTPRequestHandler):
     def _handle_instructor_pay_proxy(self):
         """Proxy terminal individual instructor booking/payment — injects terminal_code from .env."""
         self._proxy_instructor_request('/api/v1/instructors/terminal/pay', log_prefix='INSTRUCTOR PAY')
+
+    def _handle_visit_catalog_proxy(self):
+        """Proxy terminal visit catalog — injects terminal_code from .env."""
+        self._proxy_visit_request('/api/v1/visits/terminal/catalog', drain_body=True, log_prefix='VISIT CATALOG')
+
+    def _handle_visit_availability_proxy(self):
+        """Proxy terminal visit availability — injects terminal_code from .env."""
+        self._proxy_visit_request('/api/v1/visits/terminal/availability', log_prefix='VISIT AVAILABILITY')
+
+    def _handle_visit_hold_proxy(self):
+        """Proxy terminal visit hold creation — injects terminal_code from .env."""
+        self._proxy_visit_request('/api/v1/visits/terminal/holds', log_prefix='VISIT HOLD')
+
+    def _handle_visit_cancel_proxy(self):
+        """Proxy terminal visit hold cancel — injects terminal_code from .env."""
+        prefix = '/api/visits/holds/'
+        suffix = '/cancel'
+        key = urllib.parse.quote(self.path[len(prefix):-len(suffix)], safe='')
+        self._proxy_visit_request('/api/v1/visits/terminal/holds/' + key + '/cancel', drain_body=True, log_prefix='VISIT CANCEL')
+
+    def _handle_visit_pay_proxy(self):
+        """Proxy terminal visit hold payment — injects terminal_code from .env."""
+        prefix = '/api/visits/holds/'
+        suffix = '/pay'
+        key = urllib.parse.quote(self.path[len(prefix):-len(suffix)], safe='')
+        self._proxy_visit_request('/api/v1/visits/terminal/holds/' + key + '/pay', log_prefix='VISIT PAY')
+
+    def _proxy_visit_request(self, backend_path, drain_body=False, log_prefix='VISIT'):
+        self._proxy_group_request(backend_path, drain_body=drain_body, log_prefix=log_prefix)
 
     def _proxy_instructor_request(self, backend_path, log_prefix='INSTRUCTOR'):
         self._proxy_group_request(backend_path, drain_body=False, log_prefix=log_prefix)

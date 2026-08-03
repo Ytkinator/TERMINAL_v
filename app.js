@@ -19,11 +19,24 @@ var loadedCategories = [];
 var dayTypesCalendar = []; // calendar of day types for 100 days ahead
 var TERMINAL_TICKET_SECTION_ENABLED = false;
 var TERMINAL_TICKET_SECTION_TITLE = 'Билеты';
+var TERMINAL_SKIPASS_TOPUP_SECTION_ENABLED = false;
+var TERMINAL_SKIPASS_TOPUP_SECTION_TITLE = 'Пополнение скипасса';
 var TERMINAL_RENTAL_SECTION_ENABLED = false;
 var TERMINAL_RENTAL_SECTION_TITLE = 'Прокат';
 var TERMINAL_RENTAL_CREATE_ENABLED = false;
 var TERMINAL_RENTAL_PAYMENT_ENABLED = false;
 var pendingRentalPaymentOrder = null;
+var TERMINAL_VISIT_SECTION_ENABLED = false;
+var TERMINAL_VISIT_SECTION_TITLE = 'Посещения';
+var loadedVisitCatalog = null;
+var loadedVisitLocations = [];
+var loadedVisitSlots = [];
+var selectedVisitDate = '';
+var selectedVisitLocationId = null;
+var selectedVisitResourceId = null;
+var selectedVisitPartySize = 1;
+var pendingVisitBooking = null;
+var visitClientActiveField = 'name';
 var TERMINAL_INSTRUCTOR_SERVICE_ENABLED = false;
 var TERMINAL_INSTRUCTOR_SERVICE_TITLE = 'Служба инструкторов';
 var TERMINAL_GROUP_LESSONS_ENABLED = false;
@@ -308,6 +321,19 @@ function applyTicketSectionSettings() {
   }
 }
 
+function applySkipassTopupSectionSettings() {
+  var section = document.getElementById('terminal-skipass-topup-section');
+  var title = document.getElementById('terminal-skipass-topup-title');
+
+  if (title) {
+    title.textContent = TERMINAL_SKIPASS_TOPUP_SECTION_TITLE || 'Пополнение скипасса';
+  }
+
+  if (section) {
+    section.style.display = TERMINAL_SKIPASS_TOPUP_SECTION_ENABLED ? '' : 'none';
+  }
+}
+
 function applyRentalSectionSettings() {
   var section = document.getElementById('terminal-rental-section');
   var title = document.getElementById('terminal-rental-title');
@@ -330,6 +356,24 @@ function applyRentalSectionSettings() {
   if (section) {
     var hasVisibleActions = TERMINAL_RENTAL_CREATE_ENABLED || TERMINAL_RENTAL_PAYMENT_ENABLED;
     section.style.display = TERMINAL_RENTAL_SECTION_ENABLED && hasVisibleActions ? '' : 'none';
+  }
+}
+
+function applyVisitSectionSettings() {
+  var section = document.getElementById('terminal-visit-section');
+  var title = document.getElementById('terminal-visit-title');
+  var screenTitle = document.getElementById('visits-screen-title');
+
+  if (title) {
+    title.textContent = TERMINAL_VISIT_SECTION_TITLE || 'Посещения';
+  }
+
+  if (screenTitle) {
+    screenTitle.textContent = TERMINAL_VISIT_SECTION_TITLE || 'Посещения';
+  }
+
+  if (section) {
+    section.style.display = TERMINAL_VISIT_SECTION_ENABLED ? '' : 'none';
   }
 }
 
@@ -380,6 +424,25 @@ function applyGroupSectionSettings() {
     var hasVisibleActions = TERMINAL_GROUP_LESSONS_ENABLED || TERMINAL_INDIVIDUAL_LESSONS_ENABLED;
     section.style.display = TERMINAL_INSTRUCTOR_SERVICE_ENABLED && hasVisibleActions ? '' : 'none';
   }
+}
+
+function handleSkipassTopupSectionClick() {
+  if (!TERMINAL_SKIPASS_TOPUP_SECTION_ENABLED) {
+    showAlert('Пополнение скипасса отключено');
+    return;
+  }
+
+  navigateTo('scan-card');
+}
+
+function handleVisitSectionClick() {
+  if (!TERMINAL_VISIT_SECTION_ENABLED) {
+    showAlert('Посещения отключены');
+    return;
+  }
+
+  navigateTo('visits');
+  loadTerminalVisits();
 }
 
 function handleGroupSectionClick() {
@@ -1544,6 +1607,596 @@ function printInstructorTicket(contract, trainer, slot, paymentMethod, onDone) {
   }
 }
 
+function loadTerminalVisits() {
+  var stateEl = document.getElementById('visits-state');
+  var listEl = document.getElementById('visit-slots-list');
+
+  if (stateEl) stateEl.textContent = 'Загружаем посещения...';
+  if (listEl) listEl.innerHTML = '';
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', LOCAL_SERVER + '/api/visits/catalog', true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.timeout = 15000;
+  xhr.onload = function() {
+    try {
+      var data = JSON.parse(xhr.responseText);
+      if (xhr.status >= 400 || data.status === 'error') {
+        throw new Error(data.message || 'Не удалось загрузить посещения');
+      }
+
+      loadedVisitCatalog = data;
+      loadedVisitLocations = Array.isArray(data.locations) ? data.locations : [];
+      TERMINAL_VISIT_SECTION_ENABLED = data.enabled === true || data.visit_section_enabled === true;
+      TERMINAL_VISIT_SECTION_TITLE = data.title || data.visit_section_title || TERMINAL_VISIT_SECTION_TITLE;
+
+      if (!selectedVisitDate) {
+        selectedVisitDate = todayDateString();
+      }
+      if (!selectedVisitLocationId && loadedVisitLocations.length > 0) {
+        selectedVisitLocationId = loadedVisitLocations[0].id;
+      }
+
+      applyVisitSectionSettings();
+      renderVisitDates();
+      renderVisitFilters();
+      loadVisitAvailability();
+    } catch (e) {
+      console.error('[VISITS] Catalog failed:', e);
+      loadedVisitCatalog = null;
+      loadedVisitLocations = [];
+      loadedVisitSlots = [];
+      renderVisitDates();
+      renderVisitFilters();
+      renderVisitSlots(e.message || 'Ошибка загрузки посещений');
+    }
+  };
+  xhr.onerror = function() {
+    loadedVisitSlots = [];
+    renderVisitSlots('Ошибка связи с сервером');
+  };
+  xhr.ontimeout = function() {
+    loadedVisitSlots = [];
+    renderVisitSlots('Таймаут сервера');
+  };
+  xhr.send('{}');
+}
+
+function renderVisitDates() {
+  var tabsEl = document.getElementById('visits-date-tabs');
+  if (!tabsEl) return;
+
+  var horizon = loadedVisitCatalog ? parseInt(loadedVisitCatalog.booking_horizon_days || 14) : 14;
+  horizon = Math.max(1, Math.min(14, horizon || 14));
+  var dates = [];
+  var today = new Date();
+
+  for (var i = 0; i <= horizon; i++) {
+    var date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+    dates.push(dateToYmd(date));
+  }
+
+  if (dates.indexOf(selectedVisitDate) === -1) {
+    selectedVisitDate = dates[0];
+  }
+
+  tabsEl.innerHTML = '';
+  dates.forEach(function(date) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'instructor-date-tab' + (date === selectedVisitDate ? ' active' : '');
+    btn.innerHTML = visitDateTabHtml(date);
+    btn.onclick = function() {
+      selectedVisitDate = date;
+      renderVisitDates();
+      loadVisitAvailability();
+    };
+    tabsEl.appendChild(btn);
+  });
+}
+
+function renderVisitFilters() {
+  var locationEl = document.getElementById('visit-location-select');
+  var resourceEl = document.getElementById('visit-resource-select');
+  var partyEl = document.getElementById('visit-party-size');
+
+  if (locationEl) {
+    locationEl.innerHTML = '';
+    loadedVisitLocations.forEach(function(location) {
+      var option = document.createElement('option');
+      option.value = location.id;
+      option.textContent = location.name || 'Локация';
+      option.selected = parseInt(location.id) === parseInt(selectedVisitLocationId || 0);
+      locationEl.appendChild(option);
+    });
+  }
+
+  var location = selectedVisitLocation();
+  var resources = location && Array.isArray(location.resources) ? location.resources : [];
+
+  if (resourceEl) {
+    resourceEl.innerHTML = '';
+    var allOption = document.createElement('option');
+    allOption.value = '';
+    allOption.textContent = resources.length > 0 ? 'Все площадки' : 'Не требуется';
+    allOption.selected = !selectedVisitResourceId;
+    resourceEl.appendChild(allOption);
+
+    resources.forEach(function(resource) {
+      var option = document.createElement('option');
+      option.value = resource.id;
+      option.textContent = resource.name || 'Площадка';
+      option.selected = parseInt(resource.id) === parseInt(selectedVisitResourceId || 0);
+      resourceEl.appendChild(option);
+    });
+  }
+
+  if (partyEl) {
+    partyEl.value = String(selectedVisitPartySize || 1);
+  }
+}
+
+function selectedVisitLocation() {
+  return loadedVisitLocations.find(function(location) {
+    return parseInt(location.id) === parseInt(selectedVisitLocationId || 0);
+  }) || null;
+}
+
+function handleVisitLocationChange() {
+  var select = document.getElementById('visit-location-select');
+  selectedVisitLocationId = select && select.value ? parseInt(select.value) : null;
+  selectedVisitResourceId = null;
+  renderVisitFilters();
+  loadVisitAvailability();
+}
+
+function handleVisitResourceChange() {
+  var select = document.getElementById('visit-resource-select');
+  selectedVisitResourceId = select && select.value ? parseInt(select.value) : null;
+  loadVisitAvailability();
+}
+
+function handleVisitPartySizeChange() {
+  var select = document.getElementById('visit-party-size');
+  selectedVisitPartySize = select && select.value ? parseInt(select.value) : 1;
+  loadVisitAvailability();
+}
+
+function loadVisitAvailability() {
+  var stateEl = document.getElementById('visits-state');
+  var listEl = document.getElementById('visit-slots-list');
+
+  if (!TERMINAL_VISIT_SECTION_ENABLED) {
+    renderVisitSlots('Посещения отключены');
+    return;
+  }
+
+  if (!selectedVisitDate || !selectedVisitLocationId) {
+    renderVisitSlots('Выберите локацию');
+    return;
+  }
+
+  if (stateEl) stateEl.textContent = 'Загружаем свободное время...';
+  if (listEl) listEl.innerHTML = '';
+
+  var payload = {
+    date: selectedVisitDate,
+    location_id: selectedVisitLocationId,
+    party_size: selectedVisitPartySize || 1
+  };
+  if (selectedVisitResourceId) {
+    payload.location_resource_id = selectedVisitResourceId;
+  }
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', LOCAL_SERVER + '/api/visits/availability', true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.timeout = 15000;
+  xhr.onload = function() {
+    try {
+      var data = JSON.parse(xhr.responseText);
+      if (xhr.status >= 400 || data.status === 'error') {
+        throw new Error(data.message || 'Не удалось загрузить свободное время');
+      }
+
+      loadedVisitSlots = Array.isArray(data.slots) ? data.slots : [];
+      renderVisitSlots();
+    } catch (e) {
+      console.error('[VISITS] Availability failed:', e);
+      loadedVisitSlots = [];
+      renderVisitSlots(e.message || 'Ошибка загрузки свободного времени');
+    }
+  };
+  xhr.onerror = function() {
+    loadedVisitSlots = [];
+    renderVisitSlots('Ошибка связи с сервером');
+  };
+  xhr.ontimeout = function() {
+    loadedVisitSlots = [];
+    renderVisitSlots('Таймаут сервера');
+  };
+  xhr.send(JSON.stringify(payload));
+}
+
+function renderVisitSlots(errorMessage) {
+  var listEl = document.getElementById('visit-slots-list');
+  var stateEl = document.getElementById('visits-state');
+  if (!listEl || !stateEl) return;
+
+  listEl.innerHTML = '';
+
+  if (errorMessage) {
+    stateEl.textContent = errorMessage;
+    return;
+  }
+
+  if (loadedVisitSlots.length === 0) {
+    stateEl.textContent = 'Нет свободного времени';
+    return;
+  }
+
+  stateEl.textContent = '';
+  loadedVisitSlots.forEach(function(slot) {
+    var card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'visit-slot-card';
+    card.onclick = function() { openVisitClientForm(slot); };
+
+    var resourceName = slot.resource_name || selectedVisitLocationName();
+    var capacity = slot.available_capacity == null ? 'Места есть' : 'Свободно: ' + slot.available_capacity;
+    card.innerHTML =
+      '<div class="visit-slot-card__time">' + escapeHtml(slot.start_time || '') + '–' + escapeHtml(slot.fin_time || '') + '</div>' +
+      '<div class="visit-slot-card__title">' + escapeHtml(resourceName || '') + '</div>' +
+      '<div class="visit-slot-card__bottom">' +
+        '<span class="visit-slot-card__capacity">' + escapeHtml(capacity) + '</span>' +
+        '<span class="visit-slot-card__price">' + formatPrice(parseInt(slot.total || slot.price || 0)) + ' ₽</span>' +
+      '</div>';
+
+    listEl.appendChild(card);
+  });
+}
+
+function selectedVisitLocationName() {
+  var location = selectedVisitLocation();
+  return location ? location.name : '';
+}
+
+function openVisitClientForm(slot) {
+  pendingVisitBooking = {
+    slot: slot,
+    hold: null,
+    clientName: '',
+    clientPhone: '',
+    isChild: false
+  };
+
+  var modal = document.getElementById('visit-client-modal');
+  var summary = document.getElementById('visit-client-summary');
+  var nameInput = document.getElementById('visit-client-name');
+  var phoneInput = document.getElementById('visit-client-phone');
+  var ageInput = document.getElementById('visit-client-age');
+  var errorEl = document.getElementById('visit-client-error');
+
+  if (summary) {
+    summary.textContent = selectedVisitLocationName() + ' · ' + formatGroupDate(selectedVisitDate) + ' · ' +
+      (slot.start_time || '') + '–' + (slot.fin_time || '') + ' · ' +
+      formatPrice(parseInt(slot.total || slot.price || 0)) + ' ₽';
+  }
+  if (nameInput) {
+    nameInput.value = '';
+    nameInput.setAttribute('autocomplete', 'new-password');
+  }
+  if (phoneInput) {
+    phoneInput.value = '';
+    phoneInput.setAttribute('autocomplete', 'new-password');
+  }
+  if (ageInput) ageInput.value = 'adult';
+  if (errorEl) errorEl.textContent = '';
+  setVisitClientActiveField('name');
+  if (modal) modal.classList.add('active');
+}
+
+function closeVisitClientForm() {
+  var modal = document.getElementById('visit-client-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function setVisitClientActiveField(field) {
+  visitClientActiveField = field === 'phone' ? 'phone' : 'name';
+
+  document.querySelectorAll('[data-visit-client-field]').forEach(function(fieldEl) {
+    fieldEl.classList.toggle(
+      'rental-client-field--active',
+      fieldEl.getAttribute('data-visit-client-field') === visitClientActiveField
+    );
+  });
+
+  renderVisitClientKeyboard();
+}
+
+function renderVisitClientKeyboard() {
+  var keyboardEl = document.getElementById('visit-client-keyboard');
+  if (!keyboardEl) return;
+
+  var layout = visitClientActiveField === 'phone' ? RENTAL_CLIENT_PHONE_KEYBOARD : RENTAL_CLIENT_NAME_KEYBOARD;
+  keyboardEl.className = 'rental-client-keyboard rental-client-keyboard--' + visitClientActiveField;
+  keyboardEl.innerHTML = '';
+
+  layout.forEach(function(row) {
+    var rowEl = document.createElement('div');
+    rowEl.className = 'rental-client-keyboard-row';
+
+    row.forEach(function(label) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'rental-client-keyboard-key';
+      if (label === 'Пробел') {
+        button.classList.add('rental-client-keyboard-key--space');
+      } else if (label === 'Стереть' || label === 'Очистить') {
+        button.classList.add('rental-client-keyboard-key--action');
+      }
+      button.textContent = label === 'Стереть' ? '⌫' : label;
+      button.setAttribute('aria-label', label);
+      button.addEventListener('click', function() {
+        handleVisitClientKeyboardKey(label);
+      });
+      rowEl.appendChild(button);
+    });
+
+    keyboardEl.appendChild(rowEl);
+  });
+}
+
+function handleVisitClientKeyboardKey(label) {
+  var errorEl = document.getElementById('visit-client-error');
+  if (errorEl) errorEl.textContent = '';
+
+  if (visitClientActiveField === 'phone') {
+    handleVisitClientPhoneKey(label);
+    return;
+  }
+
+  handleVisitClientNameKey(label);
+}
+
+function handleVisitClientNameKey(label) {
+  var input = document.getElementById('visit-client-name');
+  if (!input) return;
+
+  if (label === 'Стереть') {
+    input.value = input.value.slice(0, -1);
+    return;
+  }
+
+  if (label === 'Очистить') {
+    input.value = '';
+    return;
+  }
+
+  var value = label === 'Пробел' ? ' ' : label;
+  input.value = normalizeRentalClientName(input.value + value);
+}
+
+function handleVisitClientPhoneKey(label) {
+  var input = document.getElementById('visit-client-phone');
+  if (!input) return;
+
+  var digits = rentalPhoneDigits(input.value);
+
+  if (label === 'Стереть') {
+    digits = digits.slice(0, -1);
+  } else if (label === 'Очистить' || label === '+7') {
+    digits = '';
+  } else if (/^\d$/.test(label) && digits.length < 10) {
+    digits += label;
+  }
+
+  input.value = formatRentalPhoneFromDigits(digits);
+}
+
+function submitVisitClientForm(event) {
+  if (event) event.preventDefault();
+  if (!pendingVisitBooking || !pendingVisitBooking.slot) {
+    closeVisitClientForm();
+    return;
+  }
+
+  var nameInput = document.getElementById('visit-client-name');
+  var phoneInput = document.getElementById('visit-client-phone');
+  var ageInput = document.getElementById('visit-client-age');
+  var errorEl = document.getElementById('visit-client-error');
+  var clientName = nameInput ? normalizeRentalClientName(nameInput.value).trim() : '';
+  var clientPhone = phoneInput ? phoneInput.value.trim() : '';
+
+  if (!clientName || rentalPhoneDigits(clientPhone).length < 10) {
+    if (errorEl) errorEl.textContent = 'Укажите имя и полный телефон клиента';
+    return;
+  }
+
+  pendingVisitBooking.clientName = clientName;
+  pendingVisitBooking.clientPhone = formatRentalPhoneFromDigits(rentalPhoneDigits(clientPhone));
+  pendingVisitBooking.isChild = ageInput ? ageInput.value === 'child' : false;
+  closeVisitClientForm();
+  createTerminalVisitHold();
+}
+
+function createTerminalVisitHold() {
+  if (!pendingVisitBooking || !pendingVisitBooking.slot) {
+    showAlert('Слот посещения не выбран');
+    return;
+  }
+
+  var slot = pendingVisitBooking.slot;
+  showPaymentLoader('Бронируем выбранное время...');
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', LOCAL_SERVER + '/api/visits/holds', true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.timeout = 15000;
+  xhr.onload = function() {
+    hidePaymentLoader();
+    try {
+      var data = JSON.parse(xhr.responseText);
+      if (xhr.status >= 400 || !data.hold) {
+        throw new Error(data.message || 'Не удалось забронировать время');
+      }
+
+      pendingVisitBooking.hold = data.hold;
+      var price = parseInt(slot.total || slot.price || 0);
+      paymentSourceScreen = 'visit';
+      pendingCartItems = [{
+        name: 'Посещение: ' + selectedVisitLocationName(),
+        price: price,
+        qty: 1
+      }];
+      pendingCartTotal = price;
+      renderPaymentSummary();
+      navigateTo('payment');
+      payByCard();
+    } catch (e) {
+      console.error('[VISITS] Hold failed:', e);
+      showAlert(e.message || 'Ошибка бронирования посещения');
+      navigateTo('visits');
+      loadVisitAvailability();
+    }
+  };
+  xhr.onerror = function() {
+    hidePaymentLoader();
+    showAlert('Ошибка связи с сервером');
+  };
+  xhr.ontimeout = function() {
+    hidePaymentLoader();
+    showAlert('Таймаут сервера');
+  };
+  xhr.send(JSON.stringify({
+    start: slot.start,
+    fin: slot.fin,
+    location_id: slot.location_id,
+    location_resource_id: slot.location_resource_id,
+    party_size: selectedVisitPartySize || 1,
+    visit_tariff_id: slot.tariff_id,
+    client_name: pendingVisitBooking.clientName,
+    client_phone: pendingVisitBooking.clientPhone,
+    is_child: pendingVisitBooking.isChild
+  }));
+}
+
+function cancelPendingVisitHold() {
+  if (!pendingVisitBooking || !pendingVisitBooking.hold || !pendingVisitBooking.hold.key) return;
+
+  var key = pendingVisitBooking.hold.key;
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', LOCAL_SERVER + '/api/visits/holds/' + encodeURIComponent(key) + '/cancel', true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.timeout = 8000;
+  xhr.send('{}');
+  pendingVisitBooking = null;
+}
+
+function createTerminalVisitPayment(paymentMethod) {
+  if (!pendingVisitBooking || !pendingVisitBooking.hold || !pendingVisitBooking.hold.key) {
+    showAlert('Бронь посещения не найдена');
+    goBackFromPayment();
+    return;
+  }
+
+  var key = pendingVisitBooking.hold.key;
+  var slot = pendingVisitBooking.slot;
+  var paymentCode = generatePaymentCode();
+  lastPaymentCode = paymentCode;
+  lastPaymentMethod = paymentMethod;
+
+  showPaymentLoader('Подтверждаем оплату посещения...');
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', LOCAL_SERVER + '/api/visits/holds/' + encodeURIComponent(key) + '/pay', true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.timeout = 15000;
+  xhr.onload = function() {
+    hidePaymentLoader();
+    try {
+      var data = JSON.parse(xhr.responseText);
+      if (xhr.status >= 400 || data.status !== 'ok') {
+        throw new Error(data.message || 'Не удалось оплатить посещение');
+      }
+
+      printVisitTicket(data.visit, slot, paymentMethod, function() {
+        pendingVisitBooking = null;
+        navigateTo('success');
+        showReceiptInline();
+        loadVisitAvailability();
+      });
+    } catch (e) {
+      console.error('[VISITS] Pay failed:', e);
+      showAlert(e.message || 'Ошибка оплаты посещения');
+      goBackFromPayment();
+    }
+  };
+  xhr.onerror = function() {
+    hidePaymentLoader();
+    showAlert('Ошибка связи с сервером');
+    goBackFromPayment();
+  };
+  xhr.ontimeout = function() {
+    hidePaymentLoader();
+    showAlert('Таймаут сервера');
+    goBackFromPayment();
+  };
+  xhr.send(JSON.stringify({
+    terminal_order_id: 'VISIT-' + Date.now().toString(36).toUpperCase(),
+    terminal_payment_code: paymentCode,
+    sum: parseInt(slot.total || slot.price || 0),
+    payment_type: 1
+  }));
+}
+
+function printVisitTicket(visit, slot, paymentMethod, onDone) {
+  var price = parseInt(slot.total || slot.price || 0);
+  var ticket = TicketService.createTicket([
+    { name: 'Посещение', price: price, qty: 1 }
+  ], price, paymentMethod);
+
+  ticket.title = 'Посещение';
+  ticket.type = (visit && visit.location_name ? visit.location_name : selectedVisitLocationName()) +
+    ' · ' + formatGroupDate(selectedVisitDate) + ' ' + (slot.start_time || '');
+  ticket.number = visit && visit.id ? String(visit.id) : ticket.number;
+  ticket.qrCode = visit && visit.terminal_key ? visit.terminal_key : ticket.qrCode;
+
+  try {
+    showPrintLoader();
+    TicketService.printTicket(ticket, function() {
+      hidePrintLoader();
+      if (onDone) onDone();
+    });
+  } catch (e) {
+    hidePrintLoader();
+    console.error('[VISITS] Print failed:', e);
+    if (onDone) onDone();
+  }
+}
+
+function todayDateString() {
+  return dateToYmd(new Date());
+}
+
+function dateToYmd(date) {
+  var yyyy = date.getFullYear();
+  var mm = String(date.getMonth() + 1).padStart(2, '0');
+  var dd = String(date.getDate()).padStart(2, '0');
+  return yyyy + '-' + mm + '-' + dd;
+}
+
+function visitDateTabHtml(dateValue) {
+  var parts = String(dateValue).split('-');
+  if (parts.length !== 3) return escapeHtml(formatGroupDateTab(dateValue));
+
+  var date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  var weekdays = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+  var weekday = isNaN(date.getTime()) ? '' : weekdays[date.getDay()];
+
+  return '<span>' + escapeHtml(weekday.toUpperCase()) + '</span><strong>' + escapeHtml(parts[2]) + '</strong>';
+}
+
 function renderPaymentSummary() {
   var payTotalEl = document.getElementById('pay-total-value');
   if (payTotalEl) payTotalEl.textContent = formatPrice(pendingCartTotal) + ' ₽';
@@ -1661,12 +2314,20 @@ function loadCategories() {
       TERMINAL_TICKET_SECTION_TITLE = (typeof data.ticket_section_title === 'string' && data.ticket_section_title.trim())
         ? data.ticket_section_title.trim()
         : 'Билеты';
+      TERMINAL_SKIPASS_TOPUP_SECTION_ENABLED = data.skipass_topup_section_enabled === true;
+      TERMINAL_SKIPASS_TOPUP_SECTION_TITLE = (typeof data.skipass_topup_section_title === 'string' && data.skipass_topup_section_title.trim())
+        ? data.skipass_topup_section_title.trim()
+        : 'Пополнение скипасса';
       TERMINAL_RENTAL_SECTION_ENABLED = data.rental_section_enabled === true;
       TERMINAL_RENTAL_SECTION_TITLE = (typeof data.rental_section_title === 'string' && data.rental_section_title.trim())
         ? data.rental_section_title.trim()
         : 'Прокат';
       TERMINAL_RENTAL_CREATE_ENABLED = data.rental_create_enabled === true;
       TERMINAL_RENTAL_PAYMENT_ENABLED = data.rental_payment_enabled === true;
+      TERMINAL_VISIT_SECTION_ENABLED = data.visit_section_enabled === true;
+      TERMINAL_VISIT_SECTION_TITLE = (typeof data.visit_section_title === 'string' && data.visit_section_title.trim())
+        ? data.visit_section_title.trim()
+        : 'Посещения';
       TERMINAL_INSTRUCTOR_SERVICE_ENABLED = data.instructor_service_enabled === true;
       TERMINAL_INSTRUCTOR_SERVICE_TITLE = (typeof data.instructor_service_title === 'string' && data.instructor_service_title.trim())
         ? data.instructor_service_title.trim()
@@ -1694,7 +2355,9 @@ function loadCategories() {
       TERMINAL_GROUP_PAYMENT_ENABLED = data.group_payment_enabled !== false;
       TERMINAL_GROUP_FREE_BOOKING_ENABLED = data.group_free_booking_enabled !== false;
       applyTicketSectionSettings();
+      applySkipassTopupSectionSettings();
       applyRentalSectionSettings();
+      applyVisitSectionSettings();
       applyGroupSectionSettings();
       populateMainBannerCarousel();
       TERMINAL_SPLASH_IMAGE = getImageSource(data.splash_image || '');
@@ -1939,6 +2602,7 @@ const screenMap = {
   'museum': 'screen-museum',
   'skypark': 'screen-skypark',
   'rental': 'screen-rental',
+  'visits': 'screen-visits',
   'groups': 'screen-groups',
   'instructors': 'screen-instructors',
   'payment': 'screen-payment',
@@ -1959,7 +2623,7 @@ function navigateTo(screenName) {
   const target = document.getElementById(targetId);
   if (target) {
     target.classList.add('active');
-    target.querySelectorAll('.main-content, .topup-wrap, .tkt-scroll, .tkt-card, .rent-content, .groups-content, .instructors-content')
+    target.querySelectorAll('.main-content, .topup-wrap, .tkt-scroll, .tkt-card, .rent-content, .groups-content, .instructors-content, .visits-content')
       .forEach(el => el.scrollTop = 0);
   }
 
@@ -1969,6 +2633,7 @@ function navigateTo(screenName) {
   if (screenName === 'museum') resetScreen('screen-museum', 'museum-total');
   if (screenName === 'skypark') resetScreen('screen-skypark', 'skypark-total');
   if (screenName === 'rental') resetRental();
+  if (screenName === 'visits') renderVisitSlots();
   if (screenName === 'groups') renderGroups();
   if (screenName === 'instructors') renderInstructors();
 
@@ -2560,6 +3225,13 @@ function goBackFromPayment() {
     return;
   }
 
+  if (paymentSourceScreen === 'visit') {
+    cancelPendingVisitHold();
+    navigateTo('visits');
+    loadVisitAvailability();
+    return;
+  }
+
   if (paymentSourceScreen) {
     navigateTo(paymentSourceScreen);
   } else {
@@ -2803,6 +3475,11 @@ function completePayment(paymentMethod) {
 
   if (paymentSourceScreen === 'individual-instructor') {
     createTerminalInstructorBooking(paymentMethod);
+    return;
+  }
+
+  if (paymentSourceScreen === 'visit') {
+    createTerminalVisitPayment(paymentMethod);
     return;
   }
 
