@@ -12,6 +12,8 @@ echo.
 set "REPO_URL=https://github.com/Ytkinator/TERMINAL_v.git"
 set "REPO_ZIP_URL=https://github.com/Ytkinator/TERMINAL_v/archive/refs/heads/master.zip"
 set "REPO_ZIP_ROOT=TERMINAL_v-master"
+set "GIT_TERMINAL_PROMPT=0"
+set "GCM_INTERACTIVE=Never"
 
 :: --- Check Git ---
 git --version >nul 2>&1
