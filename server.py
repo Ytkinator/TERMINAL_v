@@ -279,6 +279,10 @@ class TerminalHandler(http.server.SimpleHTTPRequestHandler):
             self._handle_group_catalog_proxy()
         elif self.path == '/api/groups/pay':
             self._handle_group_pay_proxy()
+        elif self.path == '/api/instructors/catalog':
+            self._handle_instructor_catalog_proxy()
+        elif self.path == '/api/instructors/pay':
+            self._handle_instructor_pay_proxy()
         else:
             self.send_error(404)
 
@@ -523,6 +527,17 @@ class TerminalHandler(http.server.SimpleHTTPRequestHandler):
     def _handle_group_pay_proxy(self):
         """Proxy terminal group booking/payment — injects terminal_code from .env."""
         self._proxy_group_request('/api/v1/groups/terminal/pay', log_prefix='GROUP PAY')
+
+    def _handle_instructor_catalog_proxy(self):
+        """Proxy terminal individual instructor catalog — injects terminal_code from .env."""
+        self._proxy_instructor_request('/api/v1/instructors/terminal/catalog', log_prefix='INSTRUCTOR CATALOG')
+
+    def _handle_instructor_pay_proxy(self):
+        """Proxy terminal individual instructor booking/payment — injects terminal_code from .env."""
+        self._proxy_instructor_request('/api/v1/instructors/terminal/pay', log_prefix='INSTRUCTOR PAY')
+
+    def _proxy_instructor_request(self, backend_path, log_prefix='INSTRUCTOR'):
+        self._proxy_group_request(backend_path, drain_body=False, log_prefix=log_prefix)
 
     def _proxy_group_request(self, backend_path, drain_body=False, log_prefix='GROUP'):
         import urllib.error

@@ -686,50 +686,93 @@
       </header>
 
       <div class="instructors-content">
-        <h2 class="page-title">Список инструкторов</h2>
-
-        <div class="tabs">
-          <button class="tab active">Лыжи</button>
-          <button class="tab">Сноуборд</button>
+        <div class="instructors-title-row">
+          <span class="instructors-title" id="instructors-screen-title">Индивидуальные занятия</span>
         </div>
 
-        <div class="instructors-grid">
-          <div class="instructor-card">
-            <div class="instructor-photo" style="background-image: url('images/instructor-1.jpg')"></div>
-            <h4 class="instructor-name">Иванова Ирина</h4>
-            <span class="instructor-spec">Лыжи</span>
-          </div>
-          <div class="instructor-card">
-            <div class="instructor-photo" style="background-image: url('images/instructor-2.jpg')"></div>
-            <h4 class="instructor-name">Петров Алексей</h4>
-            <span class="instructor-spec">Лыжи</span>
-          </div>
-          <div class="instructor-card">
-            <div class="instructor-photo" style="background-image: url('images/instructor-3.jpg')"></div>
-            <h4 class="instructor-name">Сидорова Мария</h4>
-            <span class="instructor-spec">Лыжи</span>
-          </div>
-          <div class="instructor-card">
-            <div class="instructor-photo" style="background-image: url('images/instructor-4.jpg')"></div>
-            <h4 class="instructor-name">Козлов Дмитрий</h4>
-            <span class="instructor-spec">Лыжи</span>
-          </div>
-          <div class="instructor-card">
-            <div class="instructor-photo" style="background-image: url('images/instructor-5.jpg')"></div>
-            <h4 class="instructor-name">Новикова Анна</h4>
-            <span class="instructor-spec">Лыжи</span>
-          </div>
-          <div class="instructor-card">
-            <div class="instructor-photo" style="background-image: url('images/instructor-6.jpg')"></div>
-            <h4 class="instructor-name">Морозов Артём</h4>
-            <span class="instructor-spec">Лыжи</span>
-          </div>
-        </div>
-      </div>
+        <div class="instructor-date-tabs" id="instructors-date-tabs"></div>
 
-      <div class="screen-bottom">
-        <button class="btn btn-outline btn-wide" onclick="navigateTo('main')" data-i18n="common.back">НАЗАД</button>
+        <div class="instructor-filter-grid">
+          <label class="instructor-filter-field">
+            <span>Время</span>
+            <div class="instructor-time-range">
+              <select id="instructor-start-time" onchange="handleInstructorTimeChange()"></select>
+              <span></span>
+              <select id="instructor-end-time" onchange="handleInstructorTimeChange()"></select>
+            </div>
+          </label>
+          <label class="instructor-filter-field">
+            <span>Снаряд</span>
+            <div class="instructor-filter-pills" id="instructor-implement-tabs"></div>
+          </label>
+        </div>
+
+        <label class="instructor-search">
+          <span>Тренеры</span>
+          <input type="text" autocomplete="off" placeholder="Поиск" oninput="handleInstructorSearchInput(this)">
+        </label>
+
+        <div class="instructors-list" id="instructors-list"></div>
+        <p class="instructors-state" id="instructors-state"></p>
+        <button class="groups-back-btn" type="button" onclick="navigateTo('main')" data-i18n="common.back">НАЗАД</button>
       </div>
+    </div>
+
+    <div class="rental-client-modal rental-client-modal--solid" id="instructor-client-modal">
+      <form class="rental-client-card rental-client-card--large instructor-client-card" autocomplete="off" onsubmit="submitInstructorClientForm(event)">
+        <div class="rental-client-header">
+          <h2>Запись к инструктору</h2>
+          <button class="rental-client-close" type="button" onclick="closeInstructorClientForm()">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="group-client-summary" id="instructor-client-summary"></div>
+        <label class="rental-client-field">
+          <span>Время занятия</span>
+          <select id="instructor-client-time" onchange="updateInstructorClientSlotFromSelect()"></select>
+        </label>
+        <label class="rental-client-field rental-client-field--active" data-instructor-client-field="name">
+          <span>ФИО клиента</span>
+          <input
+            id="instructor-client-name"
+            type="text"
+            name="instructor-client-name-off"
+            autocomplete="new-password"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            inputmode="none"
+            maxlength="255"
+            readonly
+            onfocus="setInstructorClientActiveField('name')"
+            onclick="setInstructorClientActiveField('name')"
+          >
+        </label>
+        <label class="rental-client-field" data-instructor-client-field="phone">
+          <span>Телефон</span>
+          <input
+            id="instructor-client-phone"
+            type="tel"
+            name="instructor-client-phone-off"
+            autocomplete="new-password"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            inputmode="none"
+            maxlength="18"
+            placeholder="+7 (___) ___-__-__"
+            readonly
+            onfocus="setInstructorClientActiveField('phone')"
+            onclick="setInstructorClientActiveField('phone')"
+          >
+        </label>
+        <p class="rental-client-error" id="instructor-client-error"></p>
+        <div class="rental-client-keyboard" id="instructor-client-keyboard" aria-label="Экранная клавиатура"></div>
+        <div class="rental-client-actions">
+          <button class="rental-client-secondary" type="button" onclick="closeInstructorClientForm()">Отмена</button>
+          <button class="rental-client-primary" type="submit">Продолжить</button>
+        </div>
+      </form>
     </div>
 
     <!-- Выбор способа оплаты -->

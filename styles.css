@@ -2260,56 +2260,244 @@ body {
 
 /* === Instructors Screen === */
 .instructors-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 40px;
+  height: calc(100% - 112px);
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 18px;
+  padding: 28px 34px 40px;
+  color: #fff;
+  overflow: hidden;
   -webkit-overflow-scrolling: touch;
 }
 
 .instructors-content::-webkit-scrollbar { display: none; }
 
-.instructors-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+.instructors-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.instructor-card {
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
+.instructors-title {
+  font-size: 34px;
+  font-weight: 900;
+}
+
+.instructor-date-tabs {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.instructor-date-tab {
+  width: 76px;
+  height: 78px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border-dark);
-  transition: border-color 0.2s, box-shadow 0.3s;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
 }
 
-.instructor-card:hover {
-  border-color: var(--border-accent);
-  box-shadow: 0 4px 20px rgba(212,45,90,0.1);
+.instructor-date-tab span {
+  font-size: 14px;
+  font-weight: 850;
+  color: rgba(255, 255, 255, 0.72);
 }
 
-.instructor-photo {
+.instructor-date-tab strong {
+  font-size: 26px;
+  font-weight: 950;
+}
+
+.instructor-date-tab.active {
+  border-color: var(--accent-light);
+  background: var(--accent);
+}
+
+.instructor-date-tab.active span {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.instructor-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  gap: 18px;
+}
+
+.instructor-filter-field,
+.instructor-search {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.instructor-filter-field > span,
+.instructor-search > span {
+  color: #fff;
+  font-size: 23px;
+  font-weight: 900;
+}
+
+.instructor-time-range {
+  display: grid;
+  grid-template-columns: 1fr 22px 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.instructor-time-range span {
+  height: 2px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.instructor-time-range select,
+.instructor-client-card select {
+  height: 64px;
   width: 100%;
-  aspect-ratio: 1;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+  padding: 0 18px;
+  font-family: 'Inter', sans-serif;
+  font-size: 24px;
+  font-weight: 850;
+  outline: none;
+}
+
+.instructor-filter-pills {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+}
+
+.instructor-filter-pill {
+  height: 64px;
+  min-width: 150px;
+  padding: 0 22px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.instructor-filter-pill.active {
+  border-color: var(--accent-light);
+  background: var(--accent);
+}
+
+.instructor-search input {
+  height: 62px;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  padding: 0 20px;
+  font-size: 24px;
+  font-weight: 750;
+  outline: none;
+}
+
+.instructor-search input::placeholder {
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.instructors-list {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 150px;
+  align-content: start;
+  gap: 16px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.instructor-booking-card {
+  height: 150px;
+  display: grid;
+  grid-template-columns: 108px 1fr;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  text-align: left;
+  overflow: hidden;
+}
+
+.instructor-booking-card__photo {
+  width: 108px;
+  height: 118px;
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(212, 45, 90, 0.34), rgba(255, 255, 255, 0.08));
   background-size: cover;
   background-position: center;
 }
 
-.instructor-name {
-  font-size: 14px;
-  font-weight: 700;
-  padding: 12px 12px 2px;
+.instructor-booking-card__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.instructor-spec {
-  font-size: 12px;
-  color: var(--accent-soft);
-  padding: 0 12px 12px;
-  font-weight: 500;
+.instructor-booking-card__name {
+  font-size: 24px;
+  font-weight: 950;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.instructor-booking-card__meta {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 17px;
+  font-weight: 750;
+}
+
+.instructor-booking-card__bottom {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.instructor-booking-card__bottom strong {
+  color: #fff;
+  font-size: 22px;
+  font-weight: 950;
+}
+
+.instructors-state {
+  min-height: 28px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.instructor-client-card .group-client-summary {
+  grid-column: 1 / -1;
 }
 
 /* === Success Screen === */
@@ -3580,7 +3768,6 @@ body {
   .tkt-combo-counter-val { width: 40px; height: 40px; font-size: 18px; }
   .tkt-pay-btn { height: 88px; font-size: 22px; }
   .tkt-back-btn { height: 72px; font-size: 18px; }
-  .instructors-grid { grid-template-columns: repeat(2, 1fr); }
   .success-card { padding: 48px 32px 40px; border-radius: 32px; gap: 24px; }
   .success-title { font-size: 28px; }
   .success-subtitle { font-size: 18px; }
@@ -3629,7 +3816,6 @@ body {
 }
 
 @media (max-width: 400px) {
-  .instructors-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
   .topup-price-val { font-size: 16px; }
   .topup-price-cell { padding: 14px 0; }
   .ski-btn { height: 120px; padding: 14px; }

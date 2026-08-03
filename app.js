@@ -39,6 +39,15 @@ var TERMINAL_GROUP_FREE_BOOKING_ENABLED = true;
 var loadedGroups = [];
 var selectedGroupDate = '';
 var pendingGroupBooking = null;
+var loadedInstructorCatalog = null;
+var loadedInstructors = [];
+var selectedInstructorDate = '';
+var selectedInstructorStartTime = '';
+var selectedInstructorEndTime = '';
+var selectedInstructorImplementId = null;
+var instructorSearchQuery = '';
+var pendingInstructorBooking = null;
+var instructorClientActiveField = 'name';
 var rentalClientActiveField = 'name';
 var RENTAL_CLIENT_NAME_KEYBOARD = [
   ['Й', 'Ц', 'У', 'К', 'Е', 'Н', 'Г', 'Ш', 'Щ', 'З', 'Х'],
@@ -389,7 +398,8 @@ function handleIndividualLessonsSectionClick() {
     return;
   }
 
-  showAlert('Запись на индивидуальные занятия скоро будет доступна');
+  navigateTo('instructors');
+  loadTerminalInstructors();
 }
 
 function handleRentalCreateClick() {
@@ -1031,6 +1041,509 @@ function printGroupTicket(contract, group, paymentMethod, onDone) {
   }
 }
 
+function loadTerminalInstructors() {
+  var stateEl = document.getElementById('instructors-state');
+  var listEl = document.getElementById('instructors-list');
+
+  if (stateEl) stateEl.textContent = 'Загружаем инструкторов...';
+  if (listEl) listEl.innerHTML = '';
+
+  var payload = {};
+  if (selectedInstructorDate) payload.date = selectedInstructorDate;
+  if (selectedInstructorStartTime) payload.start_time = selectedInstructorStartTime;
+  if (selectedInstructorEndTime) payload.end_time = selectedInstructorEndTime;
+  if (selectedInstructorImplementId) payload.implement_id = selectedInstructorImplementId;
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', LOCAL_SERVER + '/api/instructors/catalog', true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.timeout = 15000;
+  xhr.onload = function() {
+    try {
+      var data = JSON.parse(xhr.responseText);
+      if (xhr.status >= 400 || data.status === 'error') {
+        throw new Error(data.message || 'Не удалось загрузить инструкторов');
+      }
+
+      loadedInstructorCatalog = data;
+      loadedInstructors = Array.isArray(data.trainers) ? data.trainers : [];
+      TERMINAL_INDIVIDUAL_LESSONS_ENABLED = data.enabled === true || TERMINAL_INDIVIDUAL_LESSONS_ENABLED;
+      TERMINAL_INDIVIDUAL_LESSONS_TITLE = data.title || TERMINAL_INDIVIDUAL_LESSONS_TITLE;
+      if (data.filters) {
+        selectedInstructorDate = data.filters.date || selectedInstructorDate;
+        selectedInstructorStartTime = data.filters.start_time || selectedInstructorStartTime;
+        selectedInstructorEndTime = data.filters.end_time || selectedInstructorEndTime;
+        selectedInstructorImplementId = data.filters.implement_id || selectedInstructorImplementId;
+      }
+      applyGroupSectionSettings();
+      renderInstructorFilters();
+      renderInstructors();
+    } catch (e) {
+      console.error('[INSTRUCTORS] Catalog failed:', e);
+      loadedInstructorCatalog = null;
+      loadedInstructors = [];
+      renderInstructorFilters();
+      renderInstructors(e.message || 'Ошибка загрузки инструкторов');
+    }
+  };
+  xhr.onerror = function() {
+    loadedInstructors = [];
+    renderInstructors('Ошибка связи с сервером');
+  };
+  xhr.ontimeout = function() {
+    loadedInstructors = [];
+    renderInstructors('Таймаут сервера');
+  };
+  xhr.send(JSON.stringify(payload));
+}
+
+function renderInstructorFilters() {
+  var titleEl = document.getElementById('instructors-screen-title');
+  var datesEl = document.getElementById('instructors-date-tabs');
+  var startEl = document.getElementById('instructor-start-time');
+  var endEl = document.getElementById('instructor-end-time');
+  var implementsEl = document.getElementById('instructor-implement-tabs');
+
+  var catalog = loadedInstructorCatalog || {};
+  var dates = Array.isArray(catalog.dates) ? catalog.dates : [];
+  var timeSlots = Array.isArray(catalog.time_slots) ? catalog.time_slots : [];
+  var implements = Array.isArray(catalog.implements) ? catalog.implements : [];
+
+  if (titleEl) {
+    titleEl.textContent = catalog.title || TERMINAL_INDIVIDUAL_LESSONS_TITLE || 'Индивидуальные занятия';
+  }
+
+  if (datesEl) {
+    datesEl.innerHTML = '';
+    dates.forEach(function(item) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'instructor-date-tab' + (item.date === selectedInstructorDate ? ' active' : '');
+      btn.innerHTML = '<span>' + escapeHtml(String(item.weekday || '').toUpperCase()) + '</span><strong>' + escapeHtml(item.day || '') + '</strong>';
+      btn.onclick = function() {
+        selectedInstructorDate = item.date;
+        loadTerminalInstructors();
+      };
+      datesEl.appendChild(btn);
+    });
+  }
+
+  fillInstructorTimeSelect(startEl, timeSlots, selectedInstructorStartTime);
+  fillInstructorTimeSelect(endEl, timeSlots, selectedInstructorEndTime);
+
+  if (implementsEl) {
+    implementsEl.innerHTML = '';
+    implements.forEach(function(implement) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'instructor-filter-pill' + (parseInt(implement.id) === parseInt(selectedInstructorImplementId || 0) ? ' active' : '');
+      btn.textContent = implement.name || 'Снаряд';
+      btn.onclick = function() {
+        selectedInstructorImplementId = implement.id;
+        loadTerminalInstructors();
+      };
+      implementsEl.appendChild(btn);
+    });
+  }
+}
+
+function fillInstructorTimeSelect(selectEl, timeSlots, selectedValue) {
+  if (!selectEl) return;
+
+  selectEl.innerHTML = '';
+  timeSlots.forEach(function(time) {
+    var option = document.createElement('option');
+    option.value = time;
+    option.textContent = time;
+    option.selected = time === selectedValue;
+    selectEl.appendChild(option);
+  });
+}
+
+function handleInstructorTimeChange() {
+  var startEl = document.getElementById('instructor-start-time');
+  var endEl = document.getElementById('instructor-end-time');
+  selectedInstructorStartTime = startEl ? startEl.value : selectedInstructorStartTime;
+  selectedInstructorEndTime = endEl ? endEl.value : selectedInstructorEndTime;
+
+  if (compareInstructorTimes(selectedInstructorEndTime, selectedInstructorStartTime) <= 0 && loadedInstructorCatalog) {
+    var slots = Array.isArray(loadedInstructorCatalog.time_slots) ? loadedInstructorCatalog.time_slots : [];
+    var index = slots.indexOf(selectedInstructorStartTime);
+    selectedInstructorEndTime = slots[index + 2] || slots[index + 1] || selectedInstructorEndTime;
+    if (endEl) endEl.value = selectedInstructorEndTime;
+  }
+
+  loadTerminalInstructors();
+}
+
+function compareInstructorTimes(left, right) {
+  return instructorTimeToMinutes(left) - instructorTimeToMinutes(right);
+}
+
+function instructorTimeToMinutes(value) {
+  var parts = String(value || '').split(':');
+  return (parseInt(parts[0] || '0') * 60) + parseInt(parts[1] || '0');
+}
+
+function handleInstructorSearchInput(input) {
+  instructorSearchQuery = input ? input.value.trim().toLowerCase() : '';
+  renderInstructors();
+}
+
+function renderInstructors(errorMessage) {
+  var listEl = document.getElementById('instructors-list');
+  var stateEl = document.getElementById('instructors-state');
+  if (!listEl || !stateEl) return;
+
+  listEl.innerHTML = '';
+
+  if (errorMessage) {
+    stateEl.textContent = errorMessage;
+    return;
+  }
+
+  var visible = loadedInstructors.filter(function(trainer) {
+    if (!instructorSearchQuery) return true;
+    return String(trainer.name || '').toLowerCase().indexOf(instructorSearchQuery) !== -1;
+  });
+
+  if (visible.length === 0) {
+    stateEl.textContent = 'Нет свободных инструкторов на выбранное время';
+    return;
+  }
+
+  stateEl.textContent = '';
+  visible.forEach(function(trainer) {
+    var slot = trainer.selected_slot || (Array.isArray(trainer.available_slots) ? trainer.available_slots[0] : null) || {};
+    var card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'instructor-booking-card';
+    card.onclick = function() { openInstructorClientForm(trainer); };
+
+    var imageStyle = trainer.photo_url ? ' style="background-image:url(\'' + escapeAttr(trainer.photo_url) + '\')"' : '';
+    var category = trainer.category_title || 'Инструктор';
+    var price = parseInt(slot.price || 0);
+    var time = (slot.start_time || selectedInstructorStartTime || '') + '–' + (slot.end_time || selectedInstructorEndTime || '');
+
+    card.innerHTML =
+      '<div class="instructor-booking-card__photo"' + imageStyle + '></div>' +
+      '<div class="instructor-booking-card__body">' +
+        '<div class="instructor-booking-card__name">' + escapeHtml(trainer.name || 'Инструктор') + '</div>' +
+        '<div class="instructor-booking-card__meta">' + escapeHtml(category) + '</div>' +
+        '<div class="instructor-booking-card__bottom">' +
+          '<span>' + escapeHtml(time) + '</span>' +
+          '<strong>' + formatPrice(price) + ' ₽</strong>' +
+        '</div>' +
+      '</div>';
+
+    listEl.appendChild(card);
+  });
+}
+
+function openInstructorClientForm(trainer) {
+  var slots = Array.isArray(trainer.available_slots) ? trainer.available_slots : [];
+  if (slots.length === 0) {
+    showAlert('У инструктора нет доступных слотов');
+    return;
+  }
+
+  pendingInstructorBooking = {
+    trainer: trainer,
+    slot: trainer.selected_slot || slots[0],
+    clientName: '',
+    clientPhone: ''
+  };
+
+  var modal = document.getElementById('instructor-client-modal');
+  var summary = document.getElementById('instructor-client-summary');
+  var timeSelect = document.getElementById('instructor-client-time');
+  var nameInput = document.getElementById('instructor-client-name');
+  var phoneInput = document.getElementById('instructor-client-phone');
+  var errorEl = document.getElementById('instructor-client-error');
+
+  if (timeSelect) {
+    timeSelect.innerHTML = '';
+    slots.forEach(function(slot) {
+      var option = document.createElement('option');
+      option.value = slot.start + '|' + slot.end + '|' + slot.implement_subtype_scope_id + '|' + slot.price;
+      option.textContent = slot.start_time + '–' + slot.end_time + ' · ' + formatPrice(parseInt(slot.price || 0)) + ' ₽';
+      option.selected = pendingInstructorBooking.slot && slot.start === pendingInstructorBooking.slot.start;
+      timeSelect.appendChild(option);
+    });
+  }
+  if (nameInput) {
+    nameInput.value = '';
+    nameInput.setAttribute('autocomplete', 'new-password');
+  }
+  if (phoneInput) {
+    phoneInput.value = '';
+    phoneInput.setAttribute('autocomplete', 'new-password');
+  }
+  if (errorEl) errorEl.textContent = '';
+  updateInstructorClientSlotFromSelect();
+  updateInstructorClientSummary(summary);
+  setInstructorClientActiveField('name');
+  if (modal) modal.classList.add('active');
+}
+
+function updateInstructorClientSlotFromSelect() {
+  if (!pendingInstructorBooking) return;
+
+  var timeSelect = document.getElementById('instructor-client-time');
+  if (!timeSelect || !timeSelect.value) return;
+
+  var parts = timeSelect.value.split('|');
+  var slots = Array.isArray(pendingInstructorBooking.trainer.available_slots)
+    ? pendingInstructorBooking.trainer.available_slots
+    : [];
+  var slot = slots.find(function(item) {
+    return item.start === parts[0] && item.end === parts[1];
+  });
+
+  if (slot) {
+    pendingInstructorBooking.slot = slot;
+  }
+
+  updateInstructorClientSummary();
+}
+
+function updateInstructorClientSummary(summaryEl) {
+  if (!pendingInstructorBooking || !pendingInstructorBooking.slot) return;
+
+  var summary = summaryEl || document.getElementById('instructor-client-summary');
+  var slot = pendingInstructorBooking.slot;
+  var trainer = pendingInstructorBooking.trainer || {};
+  if (summary) {
+    summary.textContent = (trainer.name || 'Инструктор') + ' · ' +
+      formatGroupDate(slot.date) + ' · ' + slot.start_time + '–' + slot.end_time + ' · ' +
+      formatPrice(parseInt(slot.price || 0)) + ' ₽';
+  }
+}
+
+function closeInstructorClientForm() {
+  var modal = document.getElementById('instructor-client-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function setInstructorClientActiveField(field) {
+  instructorClientActiveField = field === 'phone' ? 'phone' : 'name';
+
+  document.querySelectorAll('[data-instructor-client-field]').forEach(function(fieldEl) {
+    fieldEl.classList.toggle(
+      'rental-client-field--active',
+      fieldEl.getAttribute('data-instructor-client-field') === instructorClientActiveField
+    );
+  });
+
+  renderInstructorClientKeyboard();
+}
+
+function renderInstructorClientKeyboard() {
+  var keyboardEl = document.getElementById('instructor-client-keyboard');
+  if (!keyboardEl) return;
+
+  var layout = instructorClientActiveField === 'phone' ? RENTAL_CLIENT_PHONE_KEYBOARD : RENTAL_CLIENT_NAME_KEYBOARD;
+  keyboardEl.className = 'rental-client-keyboard rental-client-keyboard--' + instructorClientActiveField;
+  keyboardEl.innerHTML = '';
+
+  layout.forEach(function(row) {
+    var rowEl = document.createElement('div');
+    rowEl.className = 'rental-client-keyboard-row';
+
+    row.forEach(function(label) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'rental-client-keyboard-key';
+      if (label === 'Пробел') {
+        button.classList.add('rental-client-keyboard-key--space');
+      } else if (label === 'Стереть' || label === 'Очистить') {
+        button.classList.add('rental-client-keyboard-key--action');
+      }
+      button.textContent = label === 'Стереть' ? '⌫' : label;
+      button.setAttribute('aria-label', label);
+      button.addEventListener('click', function() {
+        handleInstructorClientKeyboardKey(label);
+      });
+      rowEl.appendChild(button);
+    });
+
+    keyboardEl.appendChild(rowEl);
+  });
+}
+
+function handleInstructorClientKeyboardKey(label) {
+  var errorEl = document.getElementById('instructor-client-error');
+  if (errorEl) errorEl.textContent = '';
+
+  if (instructorClientActiveField === 'phone') {
+    handleInstructorClientPhoneKey(label);
+    return;
+  }
+
+  handleInstructorClientNameKey(label);
+}
+
+function handleInstructorClientNameKey(label) {
+  var input = document.getElementById('instructor-client-name');
+  if (!input) return;
+
+  if (label === 'Стереть') {
+    input.value = input.value.slice(0, -1);
+    return;
+  }
+
+  if (label === 'Очистить') {
+    input.value = '';
+    return;
+  }
+
+  var value = label === 'Пробел' ? ' ' : label;
+  input.value = normalizeRentalClientName(input.value + value);
+}
+
+function handleInstructorClientPhoneKey(label) {
+  var input = document.getElementById('instructor-client-phone');
+  if (!input) return;
+
+  var digits = rentalPhoneDigits(input.value);
+
+  if (label === 'Стереть') {
+    digits = digits.slice(0, -1);
+  } else if (label === 'Очистить' || label === '+7') {
+    digits = '';
+  } else if (/^\d$/.test(label) && digits.length < 10) {
+    digits += label;
+  }
+
+  input.value = formatRentalPhoneFromDigits(digits);
+}
+
+function submitInstructorClientForm(event) {
+  if (event) event.preventDefault();
+  if (!pendingInstructorBooking || !pendingInstructorBooking.trainer || !pendingInstructorBooking.slot) {
+    closeInstructorClientForm();
+    return;
+  }
+
+  updateInstructorClientSlotFromSelect();
+
+  var nameInput = document.getElementById('instructor-client-name');
+  var phoneInput = document.getElementById('instructor-client-phone');
+  var errorEl = document.getElementById('instructor-client-error');
+  var clientName = nameInput ? nameInput.value.trim() : '';
+  var clientPhone = phoneInput ? phoneInput.value.trim() : '';
+
+  if (!clientName || rentalPhoneDigits(clientPhone).length < 10) {
+    if (errorEl) errorEl.textContent = 'Укажите имя и полный телефон клиента';
+    return;
+  }
+
+  pendingInstructorBooking.clientName = clientName;
+  pendingInstructorBooking.clientPhone = clientPhone;
+  closeInstructorClientForm();
+
+  var slot = pendingInstructorBooking.slot;
+  var price = parseInt(slot.price || 0);
+  paymentSourceScreen = 'individual-instructor';
+  pendingCartItems = [{
+    name: 'Индивидуальное занятие: ' + (pendingInstructorBooking.trainer.name || 'Инструктор'),
+    price: price,
+    qty: 1
+  }];
+  pendingCartTotal = price;
+  renderPaymentSummary();
+  navigateTo('payment');
+  payByCard();
+}
+
+function createTerminalInstructorBooking(paymentMethod) {
+  if (!pendingInstructorBooking || !pendingInstructorBooking.trainer || !pendingInstructorBooking.slot) {
+    showAlert('Инструктор не выбран');
+    goBackFromPayment();
+    return;
+  }
+
+  var trainer = pendingInstructorBooking.trainer;
+  var slot = pendingInstructorBooking.slot;
+  var paymentCode = generatePaymentCode();
+  lastPaymentCode = paymentCode;
+  lastPaymentMethod = paymentMethod;
+
+  showPaymentLoader('Подтверждаем запись к инструктору...');
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', LOCAL_SERVER + '/api/instructors/pay', true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.timeout = 15000;
+  xhr.onload = function() {
+    hidePaymentLoader();
+    try {
+      var data = JSON.parse(xhr.responseText);
+      if (xhr.status >= 400 || data.status !== 'ok') {
+        throw new Error(data.message || 'Не удалось записаться к инструктору');
+      }
+
+      printInstructorTicket(data.contract, trainer, slot, paymentMethod, function() {
+        pendingInstructorBooking = null;
+        navigateTo('success');
+        showReceiptInline();
+        loadTerminalInstructors();
+      });
+    } catch (e) {
+      console.error('[INSTRUCTORS] Pay failed:', e);
+      showAlert(e.message || 'Ошибка записи к инструктору');
+      goBackFromPayment();
+    }
+  };
+  xhr.onerror = function() {
+    hidePaymentLoader();
+    showAlert('Ошибка связи с сервером');
+    goBackFromPayment();
+  };
+  xhr.ontimeout = function() {
+    hidePaymentLoader();
+    showAlert('Таймаут сервера');
+    goBackFromPayment();
+  };
+  xhr.send(JSON.stringify({
+    terminal_order_id: 'IND-' + Date.now().toString(36).toUpperCase(),
+    terminal_payment_code: paymentCode,
+    trainer_id: trainer.id,
+    implement_id: slot.implement_id,
+    implement_subtype_scope_id: slot.implement_subtype_scope_id,
+    start: slot.start,
+    end: slot.end,
+    client_name: pendingInstructorBooking.clientName,
+    client_phone: pendingInstructorBooking.clientPhone,
+    sum: parseInt(slot.price || 0),
+    payment_type: 1
+  }));
+}
+
+function printInstructorTicket(contract, trainer, slot, paymentMethod, onDone) {
+  var price = parseInt(slot.price || 0);
+  var ticket = TicketService.createTicket([
+    { name: 'Индивидуальное занятие', price: price, qty: 1 }
+  ], price, paymentMethod);
+
+  ticket.title = 'Индивидуальное занятие';
+  ticket.type = (trainer.name || 'Инструктор') + ' · ' + formatGroupDate(slot.date) + ' ' + (slot.start_time || '');
+  ticket.number = contract && contract.surrogate_id ? contract.surrogate_id : ticket.number;
+  ticket.qrCode = contract && contract.surrogate_id ? contract.surrogate_id : ticket.qrCode;
+
+  try {
+    showPrintLoader();
+    TicketService.printTicket(ticket, function() {
+      hidePrintLoader();
+      if (onDone) onDone();
+    });
+  } catch (e) {
+    hidePrintLoader();
+    console.error('[INSTRUCTORS] Print failed:', e);
+    if (onDone) onDone();
+  }
+}
+
 function renderPaymentSummary() {
   var payTotalEl = document.getElementById('pay-total-value');
   if (payTotalEl) payTotalEl.textContent = formatPrice(pendingCartTotal) + ' ₽';
@@ -1457,6 +1970,7 @@ function navigateTo(screenName) {
   if (screenName === 'skypark') resetScreen('screen-skypark', 'skypark-total');
   if (screenName === 'rental') resetRental();
   if (screenName === 'groups') renderGroups();
+  if (screenName === 'instructors') renderInstructors();
 
   // Reset language to Russian when returning to splash
   if (screenName === 'splash' && window.i18n && i18n.getCurrentLang() !== 'ru') {
@@ -2041,6 +2555,11 @@ function goBackFromPayment() {
     return;
   }
 
+  if (paymentSourceScreen === 'individual-instructor') {
+    navigateTo('instructors');
+    return;
+  }
+
   if (paymentSourceScreen) {
     navigateTo(paymentSourceScreen);
   } else {
@@ -2279,6 +2798,11 @@ function completePayment(paymentMethod) {
 
   if (paymentSourceScreen === 'group') {
     createTerminalGroupBooking(paymentMethod);
+    return;
+  }
+
+  if (paymentSourceScreen === 'individual-instructor') {
+    createTerminalInstructorBooking(paymentMethod);
     return;
   }
 
