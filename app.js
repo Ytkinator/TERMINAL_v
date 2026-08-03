@@ -746,7 +746,7 @@ function renderGroupDates() {
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'groups-date-tab' + (date === selectedGroupDate ? ' active' : '');
-    btn.textContent = formatGroupDate(date);
+    btn.textContent = formatGroupDateTab(date);
     btn.onclick = function() {
       selectedGroupDate = date;
       renderGroupDates();
@@ -1002,6 +1002,19 @@ function formatGroupDate(dateValue) {
   var parts = String(dateValue).split('-');
   if (parts.length !== 3) return String(dateValue);
   return parts[2] + '.' + parts[1];
+}
+
+function formatGroupDateTab(dateValue) {
+  if (!dateValue) return '';
+  var baseDate = formatGroupDate(dateValue);
+  var parts = String(dateValue).split('-');
+  if (parts.length !== 3) return baseDate;
+
+  var date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  if (isNaN(date.getTime())) return baseDate;
+
+  var weekdays = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+  return baseDate + ' (' + weekdays[date.getDay()] + ')';
 }
 
 function escapeHtml(value) {

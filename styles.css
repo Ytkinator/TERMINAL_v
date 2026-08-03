@@ -664,7 +664,7 @@ body {
   height: calc(100% - 112px);
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
   padding: 28px 34px 40px;
   color: #fff;
   overflow: hidden;
@@ -682,23 +682,6 @@ body {
   font-weight: 900;
 }
 
-.groups-refresh-btn {
-  width: 62px;
-  height: 62px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-}
-
-.groups-refresh-btn svg {
-  width: 30px;
-  height: 30px;
-}
-
 .groups-date-tabs {
   display: flex;
   gap: 12px;
@@ -707,7 +690,7 @@ body {
 }
 
 .groups-date-tab {
-  min-width: 132px;
+  min-width: 154px;
   height: 64px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 18px;
@@ -726,13 +709,16 @@ body {
   flex: 1;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 220px;
+  align-content: start;
+  align-items: start;
   gap: 18px;
   overflow-y: auto;
   padding-right: 4px;
 }
 
 .group-card {
-  min-height: 220px;
+  height: 220px;
   display: grid;
   grid-template-columns: 180px 1fr;
   gap: 18px;
@@ -742,6 +728,7 @@ body {
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
   text-align: left;
+  overflow: hidden;
 }
 
 .group-card__image {
@@ -753,6 +740,7 @@ body {
 }
 
 .group-card__body {
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -768,6 +756,10 @@ body {
   font-size: 26px;
   font-weight: 900;
   line-height: 1.12;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .group-card__meta,
@@ -776,6 +768,13 @@ body {
   font-size: 17px;
   font-weight: 650;
   line-height: 1.28;
+}
+
+.group-card__description {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .group-card__bottom {
@@ -806,6 +805,23 @@ body {
   color: rgba(255, 255, 255, 0.7);
   font-size: 20px;
   font-weight: 700;
+}
+
+.groups-back-btn {
+  height: 72px;
+  width: 100%;
+  flex: 0 0 auto;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.groups-back-btn:active {
+  transform: scale(0.99);
 }
 
 .group-client-summary {
