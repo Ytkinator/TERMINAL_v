@@ -893,23 +893,51 @@
     </div>
 
     <!-- Форма клиента для создания проката -->
-    <div class="rental-client-modal" id="rental-client-modal">
-      <form class="rental-client-card" onsubmit="submitRentalClientForm(event)">
+    <div class="rental-client-modal rental-client-modal--solid" id="rental-client-modal">
+      <form class="rental-client-card rental-client-card--large" autocomplete="off" onsubmit="submitRentalClientForm(event)">
         <div class="rental-client-header">
           <h2>Новый прокат</h2>
           <button class="rental-client-close" type="button" onclick="closeRentalClientForm()">
             <i data-lucide="x"></i>
           </button>
         </div>
-        <label class="rental-client-field">
+        <label class="rental-client-field rental-client-field--active" data-rental-client-field="name">
           <span>Имя клиента</span>
-          <input id="rental-client-name" type="text" autocomplete="name" maxlength="255">
+          <input
+            id="rental-client-name"
+            type="text"
+            name="rental-client-name-off"
+            autocomplete="new-password"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            inputmode="none"
+            maxlength="255"
+            readonly
+            onfocus="setRentalClientActiveField('name')"
+            onclick="setRentalClientActiveField('name')"
+          >
         </label>
-        <label class="rental-client-field">
+        <label class="rental-client-field" data-rental-client-field="phone">
           <span>Телефон</span>
-          <input id="rental-client-phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="255">
+          <input
+            id="rental-client-phone"
+            type="tel"
+            name="rental-client-phone-off"
+            autocomplete="new-password"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            inputmode="none"
+            maxlength="18"
+            placeholder="+7 (___) ___-__-__"
+            readonly
+            onfocus="setRentalClientActiveField('phone')"
+            onclick="setRentalClientActiveField('phone')"
+          >
         </label>
         <p class="rental-client-error" id="rental-client-error"></p>
+        <div class="rental-client-keyboard" id="rental-client-keyboard" aria-label="Экранная клавиатура"></div>
         <div class="rental-client-actions">
           <button class="rental-client-secondary" type="button" onclick="closeRentalClientForm()">Отмена</button>
           <button class="rental-client-primary" type="submit">Создать</button>

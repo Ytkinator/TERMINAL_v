@@ -31,6 +31,20 @@ var TERMINAL_GROUP_FREE_BOOKING_ENABLED = true;
 var loadedGroups = [];
 var selectedGroupDate = '';
 var pendingGroupBooking = null;
+var rentalClientActiveField = 'name';
+var RENTAL_CLIENT_NAME_KEYBOARD = [
+  ['Й', 'Ц', 'У', 'К', 'Е', 'Н', 'Г', 'Ш', 'Щ', 'З', 'Х'],
+  ['Ф', 'Ы', 'В', 'А', 'П', 'Р', 'О', 'Л', 'Д', 'Ж', 'Э'],
+  ['Я', 'Ч', 'С', 'М', 'И', 'Т', 'Ь', 'Б', 'Ю'],
+  ['Пробел', '-', 'Стереть', 'Очистить']
+];
+var RENTAL_CLIENT_PHONE_KEYBOARD = [
+  ['1', '2', '3'],
+  ['4', '5', '6'],
+  ['7', '8', '9'],
+  ['+7', '0', 'Стереть'],
+  ['Очистить']
+];
 var TERMINAL_CAROUSEL_ENABLED = false;
 var TERMINAL_CAROUSEL_IMAGES = [];
 var TERMINAL_SPLASH_IMAGE = '';
@@ -339,15 +353,155 @@ function handleRentalCreateClick() {
   openRentalClientForm();
 }
 
+function setRentalClientActiveField(field) {
+  rentalClientActiveField = field === 'phone' ? 'phone' : 'name';
+
+  document.querySelectorAll('[data-rental-client-field]').forEach(function(fieldEl) {
+    fieldEl.classList.toggle(
+      'rental-client-field--active',
+      fieldEl.getAttribute('data-rental-client-field') === rentalClientActiveField
+    );
+  });
+
+  renderRentalClientKeyboard();
+}
+
+function renderRentalClientKeyboard() {
+  var keyboardEl = document.getElementById('rental-client-keyboard');
+  if (!keyboardEl) return;
+
+  var layout = rentalClientActiveField === 'phone' ? RENTAL_CLIENT_PHONE_KEYBOARD : RENTAL_CLIENT_NAME_KEYBOARD;
+  keyboardEl.className = 'rental-client-keyboard rental-client-keyboard--' + rentalClientActiveField;
+  keyboardEl.innerHTML = '';
+
+  layout.forEach(function(row) {
+    var rowEl = document.createElement('div');
+    rowEl.className = 'rental-client-keyboard-row';
+
+    row.forEach(function(label) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'rental-client-keyboard-key';
+
+      if (label === 'Пробел') {
+        button.classList.add('rental-client-keyboard-key--space');
+      } else if (label === 'Стереть' || label === 'Очистить') {
+        button.classList.add('rental-client-keyboard-key--action');
+      }
+
+      button.textContent = label === 'Стереть' ? '⌫' : label;
+      button.setAttribute('aria-label', label);
+      button.addEventListener('click', function() {
+        handleRentalClientKeyboardKey(label);
+      });
+      rowEl.appendChild(button);
+    });
+
+    keyboardEl.appendChild(rowEl);
+  });
+}
+
+function handleRentalClientKeyboardKey(label) {
+  var errorEl = document.getElementById('rental-client-error');
+  if (errorEl) errorEl.textContent = '';
+
+  if (rentalClientActiveField === 'phone') {
+    handleRentalClientPhoneKey(label);
+    return;
+  }
+
+  handleRentalClientNameKey(label);
+}
+
+function handleRentalClientNameKey(label) {
+  var input = document.getElementById('rental-client-name');
+  if (!input) return;
+
+  if (label === 'Стереть') {
+    input.value = input.value.slice(0, -1);
+    return;
+  }
+
+  if (label === 'Очистить') {
+    input.value = '';
+    return;
+  }
+
+  var value = label === 'Пробел' ? ' ' : label;
+  input.value = normalizeRentalClientName(input.value + value);
+}
+
+function handleRentalClientPhoneKey(label) {
+  var input = document.getElementById('rental-client-phone');
+  if (!input) return;
+
+  var digits = rentalPhoneDigits(input.value);
+
+  if (label === 'Стереть') {
+    digits = digits.slice(0, -1);
+  } else if (label === 'Очистить' || label === '+7') {
+    digits = '';
+  } else if (/^\d$/.test(label) && digits.length < 10) {
+    digits += label;
+  }
+
+  input.value = formatRentalPhoneFromDigits(digits);
+}
+
+function normalizeRentalClientName(value) {
+  return value
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^\s+/, '')
+    .slice(0, 255);
+}
+
+function rentalPhoneDigits(value) {
+  var digits = String(value || '').replace(/\D/g, '');
+
+  if (digits.charAt(0) === '8') {
+    digits = digits.slice(1);
+  } else if (digits.charAt(0) === '7') {
+    digits = digits.slice(1);
+  }
+
+  return digits.slice(0, 10);
+}
+
+function formatRentalPhoneFromDigits(digits) {
+  digits = String(digits || '').replace(/\D/g, '').slice(0, 10);
+  if (!digits) return '';
+
+  var result = '+7';
+  var area = digits.slice(0, 3);
+  var prefix = digits.slice(3, 6);
+  var part1 = digits.slice(6, 8);
+  var part2 = digits.slice(8, 10);
+
+  if (area) result += ' (' + area;
+  if (area.length === 3) result += ')';
+  if (prefix) result += ' ' + prefix;
+  if (part1) result += '-' + part1;
+  if (part2) result += '-' + part2;
+
+  return result;
+}
+
 function openRentalClientForm() {
   var modal = document.getElementById('rental-client-modal');
   var nameInput = document.getElementById('rental-client-name');
   var phoneInput = document.getElementById('rental-client-phone');
   var errorEl = document.getElementById('rental-client-error');
 
-  if (nameInput) nameInput.value = '';
-  if (phoneInput) phoneInput.value = '';
+  if (nameInput) {
+    nameInput.value = '';
+    nameInput.setAttribute('autocomplete', 'new-password');
+  }
+  if (phoneInput) {
+    phoneInput.value = '';
+    phoneInput.setAttribute('autocomplete', 'new-password');
+  }
   if (errorEl) errorEl.textContent = '';
+  setRentalClientActiveField('name');
   if (modal) modal.classList.add('active');
 
   setTimeout(function() {
@@ -366,16 +520,17 @@ function submitRentalClientForm(event) {
   var nameInput = document.getElementById('rental-client-name');
   var phoneInput = document.getElementById('rental-client-phone');
   var errorEl = document.getElementById('rental-client-error');
-  var clientName = nameInput ? nameInput.value.trim() : '';
+  var clientName = nameInput ? normalizeRentalClientName(nameInput.value).trim() : '';
   var clientPhone = phoneInput ? phoneInput.value.trim() : '';
+  var phoneDigits = rentalPhoneDigits(clientPhone);
 
-  if (!clientName || !clientPhone) {
+  if (!clientName || phoneDigits.length !== 10) {
     if (errorEl) errorEl.textContent = 'Укажите имя и телефон клиента';
     return;
   }
 
   closeRentalClientForm();
-  createRentalOrderForClient(clientName, clientPhone);
+  createRentalOrderForClient(clientName, formatRentalPhoneFromDigits(phoneDigits));
 }
 
 function createRentalOrderForClient(clientName, clientPhone) {

@@ -2686,6 +2686,11 @@ body {
   transition: opacity 0.25s ease;
 }
 
+.rental-client-modal--solid {
+  padding: 24px;
+  background: #050609;
+}
+
 .rental-client-modal.active {
   opacity: 1;
   pointer-events: auto;
@@ -2701,6 +2706,24 @@ body {
   border-radius: 24px;
   background: rgba(20, 20, 22, 0.94);
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.42);
+}
+
+.rental-client-card--large {
+  width: min(1080px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 20px;
+  padding: 34px;
+  overflow-y: auto;
+  background: #141416;
+}
+
+.rental-client-card--large .rental-client-header,
+.rental-client-card--large .rental-client-error,
+.rental-client-card--large .rental-client-keyboard,
+.rental-client-card--large .rental-client-actions {
+  grid-column: 1 / -1;
 }
 
 .rental-client-header {
@@ -2759,9 +2782,23 @@ body {
   outline: none;
 }
 
+.rental-client-field--active input {
+  border-color: var(--accent-light);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 0 3px rgba(212, 45, 90, 0.2);
+}
+
 .rental-client-field input:focus {
   border-color: var(--accent-light);
   box-shadow: 0 0 0 3px rgba(212, 45, 90, 0.2);
+}
+
+.rental-client-field input[readonly] {
+  cursor: pointer;
+}
+
+.rental-client-field input::placeholder {
+  color: rgba(255, 255, 255, 0.42);
 }
 
 .rental-client-error {
@@ -2786,6 +2823,72 @@ body {
   font-weight: 900;
 }
 
+.rental-client-keyboard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 22px;
+  background: #0d0e12;
+}
+
+.rental-client-keyboard-row {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.rental-client-keyboard-key {
+  min-width: 64px;
+  height: 58px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: #22242a;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 0.08s ease, background 0.12s ease, border-color 0.12s ease;
+}
+
+.rental-client-keyboard-key:active {
+  transform: scale(0.96);
+  border-color: rgba(255, 255, 255, 0.22);
+  background: #333743;
+}
+
+.rental-client-keyboard-key--space {
+  flex: 1;
+  max-width: 360px;
+}
+
+.rental-client-keyboard-key--action {
+  min-width: 112px;
+  background: #2d3037;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.rental-client-keyboard--phone .rental-client-keyboard-row {
+  gap: 14px;
+}
+
+.rental-client-keyboard--phone .rental-client-keyboard-key {
+  min-width: 120px;
+  height: 66px;
+  font-size: 26px;
+}
+
+.rental-client-keyboard--phone .rental-client-keyboard-key--action {
+  min-width: 180px;
+}
+
+.rental-client-keyboard--phone .rental-client-keyboard-row:last-child .rental-client-keyboard-key {
+  width: 260px;
+}
+
 .rental-client-primary {
   border: 1px solid var(--accent-light);
   background: var(--accent);
@@ -2796,6 +2899,35 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.07);
   color: #fff;
+}
+
+@media (max-width: 760px) {
+  .rental-client-card--large {
+    grid-template-columns: 1fr;
+  }
+
+  .rental-client-keyboard {
+    padding: 12px;
+  }
+
+  .rental-client-keyboard-row {
+    gap: 6px;
+  }
+
+  .rental-client-keyboard-key {
+    min-width: 44px;
+    height: 52px;
+    font-size: 18px;
+  }
+
+  .rental-client-keyboard-key--action {
+    min-width: 90px;
+  }
+
+  .rental-client-keyboard--phone .rental-client-keyboard-key {
+    min-width: 86px;
+    height: 58px;
+  }
 }
 
 /* === Receipt Modal === */
