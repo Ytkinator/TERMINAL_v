@@ -14,6 +14,7 @@ set "REPO_ZIP_ROOT=TERMINAL_v-master"
 set "REPO_ZIP=%TEMP%\terminal_vg_update.zip"
 set "REPO_DIR=%TEMP%\terminal_vg_update_ext"
 set "ENV_BACKUP=%TEMP%\terminal_vg_env_backup_%RANDOM%.env"
+set "COPY_LOG=%TEMP%\terminal_vg_update_copy_%RANDOM%.log"
 
 echo  Source: %REPO_ZIP_URL%
 echo.
@@ -34,8 +35,9 @@ echo  [3/5] Preserving local config...
 if exist "%~dp0.env" copy /y "%~dp0.env" "%ENV_BACKUP%" >nul 2>&1
 
 echo  [4/5] Copying files...
-xcopy /e /h /k /y /q "%REPO_DIR%\%REPO_ZIP_ROOT%\*" "%~dp0" >nul 2>&1
-if %errorlevel% geq 4 goto :update_fail
+robocopy "%REPO_DIR%\%REPO_ZIP_ROOT%" "%~dp0" /E /R:2 /W:1 /XF ".env" /XD ".git" "__pycache__" > "%COPY_LOG%"
+set "COPY_EXIT=%errorlevel%"
+if %COPY_EXIT% geq 8 goto :copy_fail
 if exist "%ENV_BACKUP%" copy /y "%ENV_BACKUP%" "%~dp0.env" >nul 2>&1
 
 echo  [5/5] Checking runtime...
@@ -61,6 +63,13 @@ goto :done
 echo  [!] Python install failed.
 goto :cleanup
 
+:copy_fail
+echo.
+echo  [!] Copy failed. Robocopy exit code: %COPY_EXIT%
+echo      Last copy log lines:
+if exist "%COPY_LOG%" powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Content -Path '%COPY_LOG%' -Tail 40"
+goto :cleanup
+
 :update_fail
 echo.
 echo  [!] Update failed.
@@ -80,5 +89,6 @@ echo  Restart start-terminal.bat to run the new version.
 if exist "%ENV_BACKUP%" del /q "%ENV_BACKUP%" >nul 2>&1
 if exist "%REPO_ZIP%" del /q "%REPO_ZIP%" >nul 2>&1
 if exist "%REPO_DIR%" rmdir /s /q "%REPO_DIR%" >nul 2>&1
+if exist "%COPY_LOG%" del /q "%COPY_LOG%" >nul 2>&1
 echo.
 pause
