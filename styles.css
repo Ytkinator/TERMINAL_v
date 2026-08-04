@@ -702,6 +702,54 @@ body {
   color: var(--accent-light);
 }
 
+.terminal-visit-action {
+  position: relative;
+  min-height: 168px;
+  overflow: hidden;
+  justify-content: flex-start;
+  padding: 24px;
+  text-align: left;
+}
+
+.terminal-visit-action__image,
+.terminal-visit-action__overlay,
+.terminal-visit-action__placeholder {
+  position: absolute;
+  inset: 0;
+}
+
+.terminal-visit-action__image {
+  background: linear-gradient(145deg, rgba(0, 172, 207, 0.42), rgba(255, 255, 255, 0.08));
+  background-size: cover;
+  background-position: center;
+  transform: scale(1.01);
+}
+
+.terminal-visit-action__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, rgba(0, 172, 207, 0.3), rgba(212, 45, 90, 0.16));
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.terminal-visit-action__placeholder svg {
+  width: 54px;
+  height: 54px;
+}
+
+.terminal-visit-action__overlay {
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.74) 0%, rgba(0, 0, 0, 0.3) 60%, rgba(0, 0, 0, 0.08) 100%);
+}
+
+.terminal-visit-action__content {
+  position: relative;
+  z-index: 1;
+  max-width: 78%;
+  font-size: 28px;
+  line-height: 1.12;
+}
+
 /* === Group lessons === */
 .groups-content {
   height: calc(100% - 112px);

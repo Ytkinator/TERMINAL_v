@@ -181,6 +181,14 @@ function getImageSource(image) {
   return '';
 }
 
+function getVisitLocationImage(location) {
+  if (!location) {
+    return '';
+  }
+
+  return getImageSource(location.image || location.image_url || location.photo || location.photo_url || '');
+}
+
 function applySplashImage() {
   var splashBg = document.querySelector('#screen-splash .splash-bg');
   if (!splashBg) return;
@@ -363,6 +371,7 @@ function applyVisitSectionSettings() {
   var section = document.getElementById('terminal-visit-section');
   var title = document.getElementById('terminal-visit-title');
   var screenTitle = document.getElementById('visits-screen-title');
+  var actions = document.getElementById('terminal-visit-actions');
 
   if (title) {
     title.textContent = TERMINAL_VISIT_SECTION_TITLE || 'Посещения';
@@ -372,9 +381,54 @@ function applyVisitSectionSettings() {
     screenTitle.textContent = TERMINAL_VISIT_SECTION_TITLE || 'Посещения';
   }
 
+  renderVisitLocationActions(actions);
+
   if (section) {
     section.style.display = TERMINAL_VISIT_SECTION_ENABLED ? '' : 'none';
   }
+}
+
+function renderVisitLocationActions(actions) {
+  if (!actions) return;
+
+  actions.innerHTML = '';
+
+  var locations = Array.isArray(loadedVisitLocations) ? loadedVisitLocations : [];
+
+  if (!TERMINAL_VISIT_SECTION_ENABLED) {
+    return;
+  }
+
+  if (locations.length === 0) {
+    var fallback = document.createElement('button');
+    fallback.className = 'terminal-rental-action terminal-visit-action';
+    fallback.type = 'button';
+    fallback.onclick = function() { handleVisitSectionClick(); };
+    fallback.innerHTML =
+      '<span class="terminal-visit-action__placeholder"><i data-lucide="calendar-plus"></i></span>' +
+      '<span class="terminal-visit-action__overlay"></span>' +
+      '<span class="terminal-visit-action__content">Записаться на посещение</span>';
+    actions.appendChild(fallback);
+    lucide.createIcons();
+    return;
+  }
+
+  locations.forEach(function(location) {
+    var button = document.createElement('button');
+    var image = getVisitLocationImage(location);
+    button.className = 'terminal-rental-action terminal-visit-action';
+    button.type = 'button';
+    button.onclick = function() { handleVisitSectionClick(location.id); };
+    button.innerHTML =
+      (image
+        ? '<span class="terminal-visit-action__image" style="background-image:url(&quot;' + escapeAttr(image) + '&quot;)"></span>'
+        : '<span class="terminal-visit-action__placeholder"><i data-lucide="map-pin"></i></span>') +
+      '<span class="terminal-visit-action__overlay"></span>' +
+      '<span class="terminal-visit-action__content">' + escapeHtml(location.name || 'Локация') + '</span>';
+    actions.appendChild(button);
+  });
+
+  lucide.createIcons();
 }
 
 function applyGroupSectionSettings() {
@@ -435,10 +489,15 @@ function handleSkipassTopupSectionClick() {
   navigateTo('scan-card');
 }
 
-function handleVisitSectionClick() {
+function handleVisitSectionClick(locationId) {
   if (!TERMINAL_VISIT_SECTION_ENABLED) {
     showAlert('Посещения отключены');
     return;
+  }
+
+  if (locationId) {
+    selectedVisitLocationId = parseInt(locationId);
+    selectedVisitResourceId = null;
   }
 
   navigateTo('visits');
@@ -2328,6 +2387,7 @@ function loadCategories() {
       TERMINAL_VISIT_SECTION_TITLE = (typeof data.visit_section_title === 'string' && data.visit_section_title.trim())
         ? data.visit_section_title.trim()
         : 'Посещения';
+      loadedVisitLocations = Array.isArray(data.visit_locations) ? data.visit_locations : loadedVisitLocations;
       TERMINAL_INSTRUCTOR_SERVICE_ENABLED = data.instructor_service_enabled === true;
       TERMINAL_INSTRUCTOR_SERVICE_TITLE = (typeof data.instructor_service_title === 'string' && data.instructor_service_title.trim())
         ? data.instructor_service_title.trim()
