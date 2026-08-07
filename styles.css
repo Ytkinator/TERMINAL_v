@@ -406,6 +406,7 @@ body {
 
 /* === Main Content === */
 .main-content {
+  --main-action-card-height: clamp(176px, 18vh, 212px);
   flex: 1;
   overflow-y: auto;
   padding: 32px 32px 24px;
@@ -911,7 +912,7 @@ body {
 .terminal-instructor-action,
 .terminal-visit-action {
   position: relative;
-  min-height: 168px;
+  min-height: var(--main-action-card-height);
   height: auto;
   align-items: stretch;
   justify-content: flex-start;
@@ -962,7 +963,7 @@ body {
   display: flex;
   align-items: flex-end;
   width: 100%;
-  min-height: 168px;
+  min-height: var(--main-action-card-height);
   padding: 20px 24px;
 }
 
@@ -1274,7 +1275,7 @@ body {
   cursor: pointer;
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s;
   overflow: hidden;
-  aspect-ratio: 1;
+  min-height: var(--main-action-card-height);
 }
 
 .ent-card:hover {
@@ -1458,10 +1459,13 @@ body {
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 12px;
   padding: 20px 24px;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  column-gap: 12px;
+  row-gap: 2px;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
 }
@@ -1471,15 +1475,22 @@ body {
 }
 
 .info-card-icon {
-  font-size: 28px;
+  width: 28px;
+  height: 28px;
   color: #FFFFFF;
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
 }
 
 .info-value {
   font-size: 32px;
   font-weight: 600;
-  letter-spacing: -1px;
+  letter-spacing: 0;
   color: #FFFFFF;
+  grid-column: 2;
+  grid-row: 1;
+  line-height: 1;
 }
 
 .info-label {
@@ -1487,6 +1498,8 @@ body {
   font-weight: 500;
   color: #FFFFFF;
   letter-spacing: 0.5px;
+  grid-column: 2;
+  grid-row: 2;
 }
 
 /* === Scan Card Screen === */
@@ -4360,7 +4373,11 @@ body {
   .splash-logo-img { width: clamp(280px, 85vw, 600px); }
   .splash-circle { width: 180px; height: 180px; }
   .splash-circle [data-lucide] { width: 80px; height: 80px; }
-  .main-content { padding: 20px 16px; gap: 20px; }
+  .main-content {
+    --main-action-card-height: clamp(148px, 22vh, 176px);
+    padding: 20px 16px;
+    gap: 20px;
+  }
   .topup-wrap { padding: 20px; }
   .topup-top-bar { padding: 24px 20px; }
   .topup-title { font-size: 22px; }
@@ -4396,7 +4413,7 @@ body {
   .page-title { font-size: 22px; }
   .section-title { font-size: 22px; margin-bottom: 16px; }
   .banner-carousel { height: 220px; min-height: 220px; }
-  .ent-card { aspect-ratio: 1; }
+  .ent-card { min-height: var(--main-action-card-height); }
   .ent-card-body { padding: 14px 16px; gap: 10px; }
   .ent-card-title { font-size: 18px; }
   .ent-card-icon { width: 36px; height: 36px; }

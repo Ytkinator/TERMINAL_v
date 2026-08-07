@@ -139,9 +139,9 @@ def read_system_version():
     try:
         with open(VERSION_FILE, 'r', encoding='utf-8') as f:
             version = f.read().strip()
-        return version or '3.1.2'
+        return version or '3.1.3'
     except Exception:
-        return '3.1.2'
+        return '3.1.3'
 
 def init_printer():
     """Detect default printer on Windows."""

@@ -7,7 +7,7 @@ var LOCAL_SERVER = (window.location && window.location.origin && window.location
   : 'http://localhost:9999';
 var API_URL = LOCAL_SERVER + '/api/categories'; // proxied via server.py (credentials injected server-side)
 var VERSION_URL = LOCAL_SERVER + '/api/version';
-var TERMINAL_SYSTEM_VERSION = '3.1.2';
+var TERMINAL_SYSTEM_VERSION = '3.1.3';
 var TERMINAL_SYSTEM_NAME = '';
 
 // Map API category_id → screen key
@@ -320,7 +320,7 @@ function applySystemVersionInfo() {
   var terminalNameEl = document.getElementById('system-terminal-name');
 
   if (versionEl) {
-    versionEl.textContent = TERMINAL_SYSTEM_VERSION || '3.1.2';
+    versionEl.textContent = TERMINAL_SYSTEM_VERSION || '3.1.3';
   }
 
   if (terminalNameEl) {
