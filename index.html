@@ -740,9 +740,14 @@
           <label class="instructor-filter-field">
             <span>Время</span>
             <div class="instructor-time-range">
-              <select id="instructor-start-time" onchange="handleInstructorTimeChange()"></select>
-              <span></span>
-              <select id="instructor-end-time" onchange="handleInstructorTimeChange()"></select>
+              <div class="instructor-time-row">
+                <span class="instructor-time-label">С</span>
+                <div class="instructor-time-options" id="instructor-start-time-options"></div>
+              </div>
+              <div class="instructor-time-row">
+                <span class="instructor-time-label">До</span>
+                <div class="instructor-time-options" id="instructor-end-time-options"></div>
+              </div>
             </div>
           </label>
           <label class="instructor-filter-field">
@@ -818,9 +823,9 @@
           </button>
         </div>
         <div class="group-client-summary" id="instructor-client-summary"></div>
-        <label class="rental-client-field">
+        <label class="rental-client-field instructor-slot-field">
           <span>Время занятия</span>
-          <select id="instructor-client-time" onchange="updateInstructorClientSlotFromSelect()"></select>
+          <div class="instructor-slot-choices" id="instructor-client-time-options"></div>
         </label>
         <label class="rental-client-field rental-client-field--active" data-instructor-client-field="name">
           <span>ФИО клиента</span>

@@ -7,7 +7,7 @@ var LOCAL_SERVER = (window.location && window.location.origin && window.location
   : 'http://localhost:9999';
 var API_URL = LOCAL_SERVER + '/api/categories'; // proxied via server.py (credentials injected server-side)
 var VERSION_URL = LOCAL_SERVER + '/api/version';
-var TERMINAL_SYSTEM_VERSION = '3.0.0';
+var TERMINAL_SYSTEM_VERSION = '3.1.0';
 var TERMINAL_SYSTEM_NAME = '';
 
 // Map API category_id → screen key
@@ -1533,8 +1533,8 @@ function loadTerminalInstructors() {
 function renderInstructorFilters() {
   var titleEl = document.getElementById('instructors-screen-title');
   var datesEl = document.getElementById('instructors-date-tabs');
-  var startEl = document.getElementById('instructor-start-time');
-  var endEl = document.getElementById('instructor-end-time');
+  var startEl = document.getElementById('instructor-start-time-options');
+  var endEl = document.getElementById('instructor-end-time-options');
   var implementsEl = document.getElementById('instructor-implement-tabs');
 
   var catalog = loadedInstructorCatalog || {};
@@ -1561,8 +1561,9 @@ function renderInstructorFilters() {
     });
   }
 
-  fillInstructorTimeSelect(startEl, timeSlots, selectedInstructorStartTime);
-  fillInstructorTimeSelect(endEl, timeSlots, selectedInstructorEndTime);
+  normalizeInstructorTimeRange();
+  renderInstructorTimeOptions(startEl, timeSlots, selectedInstructorStartTime, 'start');
+  renderInstructorTimeOptions(endEl, timeSlots, selectedInstructorEndTime, 'end');
 
   if (implementsEl) {
     implementsEl.innerHTML = '';
@@ -1580,32 +1581,79 @@ function renderInstructorFilters() {
   }
 }
 
-function fillInstructorTimeSelect(selectEl, timeSlots, selectedValue) {
-  if (!selectEl) return;
+function renderInstructorTimeOptions(containerEl, timeSlots, selectedValue, kind) {
+  if (!containerEl) return;
 
-  selectEl.innerHTML = '';
+  containerEl.innerHTML = '';
+  if (timeSlots.length === 0) {
+    var empty = document.createElement('span');
+    empty.className = 'instructor-time-empty';
+    empty.textContent = 'Нет времени';
+    containerEl.appendChild(empty);
+    return;
+  }
+
   timeSlots.forEach(function(time) {
-    var option = document.createElement('option');
-    option.value = time;
-    option.textContent = time;
-    option.selected = time === selectedValue;
-    selectEl.appendChild(option);
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'instructor-time-option' + (time === selectedValue ? ' active' : '');
+    btn.textContent = time;
+    btn.onclick = function() {
+      setInstructorTimeRange(kind, time);
+    };
+    containerEl.appendChild(btn);
   });
+
+  var activeBtn = containerEl.querySelector('.instructor-time-option.active');
+  if (activeBtn) {
+    requestAnimationFrame(function() {
+      activeBtn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    });
+  }
+}
+
+function setInstructorTimeRange(kind, time) {
+  if (kind === 'end') {
+    selectedInstructorEndTime = time;
+  } else {
+    selectedInstructorStartTime = time;
+  }
+  normalizeInstructorTimeRange(kind);
+  loadTerminalInstructors();
+}
+
+function normalizeInstructorTimeRange(changedKind) {
+  if (!loadedInstructorCatalog) return;
+
+  var slots = Array.isArray(loadedInstructorCatalog.time_slots) ? loadedInstructorCatalog.time_slots : [];
+  if (slots.length === 0) return;
+
+  if (!selectedInstructorStartTime || slots.indexOf(selectedInstructorStartTime) === -1) {
+    selectedInstructorStartTime = slots[0];
+  }
+  if (!selectedInstructorEndTime || slots.indexOf(selectedInstructorEndTime) === -1) {
+    selectedInstructorEndTime = slots[Math.min(2, slots.length - 1)] || selectedInstructorStartTime;
+  }
+
+  if (compareInstructorTimes(selectedInstructorEndTime, selectedInstructorStartTime) > 0) {
+    return;
+  }
+
+  var startIndex = slots.indexOf(selectedInstructorStartTime);
+  var endIndex = slots.indexOf(selectedInstructorEndTime);
+  if (changedKind === 'end' && endIndex > 0) {
+    selectedInstructorStartTime = slots[Math.max(0, endIndex - 2)];
+    if (compareInstructorTimes(selectedInstructorEndTime, selectedInstructorStartTime) <= 0) {
+      selectedInstructorStartTime = slots[Math.max(0, endIndex - 1)];
+    }
+    return;
+  }
+
+  selectedInstructorEndTime = slots[startIndex + 2] || slots[startIndex + 1] || selectedInstructorEndTime;
 }
 
 function handleInstructorTimeChange() {
-  var startEl = document.getElementById('instructor-start-time');
-  var endEl = document.getElementById('instructor-end-time');
-  selectedInstructorStartTime = startEl ? startEl.value : selectedInstructorStartTime;
-  selectedInstructorEndTime = endEl ? endEl.value : selectedInstructorEndTime;
-
-  if (compareInstructorTimes(selectedInstructorEndTime, selectedInstructorStartTime) <= 0 && loadedInstructorCatalog) {
-    var slots = Array.isArray(loadedInstructorCatalog.time_slots) ? loadedInstructorCatalog.time_slots : [];
-    var index = slots.indexOf(selectedInstructorStartTime);
-    selectedInstructorEndTime = slots[index + 2] || slots[index + 1] || selectedInstructorEndTime;
-    if (endEl) endEl.value = selectedInstructorEndTime;
-  }
-
+  normalizeInstructorTimeRange();
   loadTerminalInstructors();
 }
 
@@ -1689,21 +1737,11 @@ function openInstructorClientForm(trainer) {
 
   var modal = document.getElementById('instructor-client-modal');
   var summary = document.getElementById('instructor-client-summary');
-  var timeSelect = document.getElementById('instructor-client-time');
   var nameInput = document.getElementById('instructor-client-name');
   var phoneInput = document.getElementById('instructor-client-phone');
   var errorEl = document.getElementById('instructor-client-error');
 
-  if (timeSelect) {
-    timeSelect.innerHTML = '';
-    slots.forEach(function(slot) {
-      var option = document.createElement('option');
-      option.value = slot.start + '|' + slot.end + '|' + slot.implement_subtype_scope_id + '|' + slot.price;
-      option.textContent = slot.start_time + '–' + slot.end_time + ' · ' + formatPrice(parseInt(slot.price || 0)) + ' ₽';
-      option.selected = pendingInstructorBooking.slot && slot.start === pendingInstructorBooking.slot.start;
-      timeSelect.appendChild(option);
-    });
-  }
+  renderInstructorClientSlotOptions();
   if (nameInput) {
     nameInput.value = '';
     nameInput.setAttribute('autocomplete', 'new-password');
@@ -1713,30 +1751,54 @@ function openInstructorClientForm(trainer) {
     phoneInput.setAttribute('autocomplete', 'new-password');
   }
   if (errorEl) errorEl.textContent = '';
-  updateInstructorClientSlotFromSelect();
   updateInstructorClientSummary(summary);
   setInstructorClientActiveField('name');
   if (modal) modal.classList.add('active');
 }
 
-function updateInstructorClientSlotFromSelect() {
+function renderInstructorClientSlotOptions() {
   if (!pendingInstructorBooking) return;
 
-  var timeSelect = document.getElementById('instructor-client-time');
-  if (!timeSelect || !timeSelect.value) return;
+  var optionsEl = document.getElementById('instructor-client-time-options');
+  if (!optionsEl) return;
 
-  var parts = timeSelect.value.split('|');
   var slots = Array.isArray(pendingInstructorBooking.trainer.available_slots)
     ? pendingInstructorBooking.trainer.available_slots
     : [];
-  var slot = slots.find(function(item) {
-    return item.start === parts[0] && item.end === parts[1];
+
+  optionsEl.innerHTML = '';
+  slots.forEach(function(slot, index) {
+    var isActive = pendingInstructorBooking.slot &&
+      pendingInstructorBooking.slot.start === slot.start &&
+      pendingInstructorBooking.slot.end === slot.end;
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'instructor-slot-choice' + (isActive ? ' active' : '');
+    btn.innerHTML =
+      '<span>' + escapeHtml((slot.start_time || '') + '–' + (slot.end_time || '')) + '</span>' +
+      '<strong>' + formatPrice(parseInt(slot.price || 0)) + ' ₽</strong>';
+    btn.onclick = function() {
+      selectInstructorClientSlot(index);
+    };
+    optionsEl.appendChild(btn);
   });
+}
 
-  if (slot) {
-    pendingInstructorBooking.slot = slot;
-  }
+function selectInstructorClientSlot(slotIndex) {
+  if (!pendingInstructorBooking || !pendingInstructorBooking.trainer) return;
 
+  var slots = Array.isArray(pendingInstructorBooking.trainer.available_slots)
+    ? pendingInstructorBooking.trainer.available_slots
+    : [];
+  var slot = slots[slotIndex];
+  if (!slot) return;
+
+  pendingInstructorBooking.slot = slot;
+  renderInstructorClientSlotOptions();
+  updateInstructorClientSummary();
+}
+
+function updateInstructorClientSlotFromSelect() {
   updateInstructorClientSummary();
 }
 

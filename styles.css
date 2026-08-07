@@ -998,8 +998,9 @@ body {
 /* === Group lessons === */
 .groups-content {
   height: calc(100% - 112px);
-  display: flex;
-  flex-direction: column;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   gap: 18px;
   padding: 28px 34px 40px;
   color: #fff;
@@ -1023,6 +1024,11 @@ body {
   gap: 12px;
   overflow-x: auto;
   padding-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.groups-date-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .groups-date-tab {
@@ -1042,22 +1048,23 @@ body {
 }
 
 .groups-list {
-  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-auto-rows: 220px;
+  grid-auto-rows: 232px;
   align-content: start;
-  align-items: start;
   gap: 18px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding-right: 4px;
 }
 
 .group-card {
-  height: 220px;
+  height: 100%;
+  min-width: 0;
   display: grid;
-  grid-template-columns: 180px 1fr;
-  gap: 18px;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 16px;
   padding: 18px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 22px;
@@ -1068,7 +1075,8 @@ body {
 }
 
 .group-card__image {
-  min-height: 184px;
+  width: 100%;
+  min-height: 0;
   border-radius: 18px;
   background: linear-gradient(145deg, rgba(212, 45, 90, 0.34), rgba(255, 255, 255, 0.08));
   background-size: cover;
@@ -1077,18 +1085,21 @@ body {
 
 .group-card__body {
   min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .group-card__time {
+  flex: 0 0 auto;
   color: var(--accent-light);
   font-size: 20px;
   font-weight: 900;
 }
 
 .group-card__title {
+  flex: 0 0 auto;
   font-size: 26px;
   font-weight: 900;
   line-height: 1.12;
@@ -1106,7 +1117,15 @@ body {
   line-height: 1.28;
 }
 
+.group-card__meta {
+  flex: 0 0 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .group-card__description {
+  flex: 0 1 auto;
   display: -webkit-box;
   overflow: hidden;
   -webkit-line-clamp: 2;
@@ -1124,15 +1143,21 @@ body {
 .group-card__price {
   font-size: 26px;
   font-weight: 900;
+  white-space: nowrap;
 }
 
 .group-card__seats {
+  flex: 0 1 auto;
+  max-width: 48%;
   padding: 8px 12px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.12);
   color: rgba(255, 255, 255, 0.82);
   font-size: 15px;
   font-weight: 850;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .groups-state {
@@ -2558,13 +2583,13 @@ body {
 /* === Instructors Screen === */
 .instructors-content {
   height: calc(100% - 112px);
-  display: flex;
-  flex-direction: column;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto auto;
   gap: 18px;
   padding: 28px 34px 40px;
   color: #fff;
   overflow: hidden;
-  -webkit-overflow-scrolling: touch;
 }
 
 .instructors-content::-webkit-scrollbar { display: none; }
@@ -2586,6 +2611,13 @@ body {
   gap: 12px;
   overflow-x: auto;
   padding-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.instructor-date-tabs::-webkit-scrollbar,
+.instructor-filter-pills::-webkit-scrollbar,
+.instructor-time-options::-webkit-scrollbar {
+  display: none;
 }
 
 .instructor-date-tab {
@@ -2627,10 +2659,12 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
   gap: 18px;
+  min-width: 0;
 }
 
 .instructor-filter-field,
 .instructor-search {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -2645,36 +2679,70 @@ body {
 
 .instructor-time-range {
   display: grid;
-  grid-template-columns: 1fr 22px 1fr;
+  gap: 10px;
+}
+
+.instructor-time-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
-.instructor-time-range span {
-  height: 2px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.22);
+.instructor-time-label {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 17px;
+  font-weight: 900;
 }
 
-.instructor-time-range select,
-.instructor-client-card select {
-  height: 64px;
-  width: 100%;
+.instructor-time-options {
+  min-width: 0;
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.instructor-time-option {
+  flex: 0 0 auto;
+  min-width: 92px;
+  height: 56px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.09);
-  color: #fff;
-  padding: 0 18px;
+  color: rgba(255, 255, 255, 0.88);
   font-family: 'Inter', sans-serif;
-  font-size: 24px;
-  font-weight: 850;
-  outline: none;
+  font-size: 21px;
+  font-weight: 900;
+}
+
+.instructor-time-option.active {
+  border-color: var(--accent-light);
+  background: var(--accent);
+  color: #fff;
+}
+
+.instructor-time-empty {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 18px;
+  font-weight: 800;
 }
 
 .instructor-filter-pills {
   display: flex;
   gap: 12px;
   overflow-x: auto;
+  scrollbar-width: none;
 }
 
 .instructor-filter-pill {
@@ -2714,20 +2782,22 @@ body {
 }
 
 .instructors-list {
-  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-auto-rows: 150px;
+  grid-auto-rows: 154px;
   align-content: start;
   gap: 16px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding-right: 4px;
 }
 
 .instructor-booking-card {
-  height: 150px;
+  height: 100%;
+  min-width: 0;
   display: grid;
-  grid-template-columns: 108px 1fr;
+  grid-template-columns: 112px minmax(0, 1fr);
   gap: 16px;
   padding: 16px;
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -2739,8 +2809,8 @@ body {
 }
 
 .instructor-booking-card__photo {
-  width: 108px;
-  height: 118px;
+  width: 112px;
+  height: 122px;
   border-radius: 18px;
   background: linear-gradient(145deg, rgba(212, 45, 90, 0.34), rgba(255, 255, 255, 0.08));
   background-size: cover;
@@ -2748,6 +2818,7 @@ body {
 }
 
 .instructor-booking-card__body {
+  min-height: 0;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -2767,11 +2838,16 @@ body {
   color: rgba(255, 255, 255, 0.68);
   font-size: 17px;
   font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .instructor-booking-card__bottom {
+  min-width: 0;
   margin-top: auto;
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   color: rgba(255, 255, 255, 0.8);
@@ -2779,7 +2855,15 @@ body {
   font-weight: 800;
 }
 
+.instructor-booking-card__bottom span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .instructor-booking-card__bottom strong {
+  flex: 0 0 auto;
   color: #fff;
   font-size: 22px;
   font-weight: 950;
@@ -2796,6 +2880,58 @@ body {
 .rental-client-card--large .group-client-summary,
 .instructor-client-card .group-client-summary {
   grid-column: 1 / -1;
+}
+
+.instructor-slot-field {
+  grid-column: 1 / -1;
+}
+
+.instructor-slot-choices {
+  max-height: 150px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
+.instructor-slot-choice {
+  min-width: 0;
+  height: 66px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+}
+
+.instructor-slot-choice.active {
+  border-color: var(--accent-light);
+  background: var(--accent);
+}
+
+.instructor-slot-choice span,
+.instructor-slot-choice strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.instructor-slot-choice span {
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.instructor-slot-choice strong {
+  flex: 0 0 auto;
+  font-size: 20px;
+  font-weight: 950;
 }
 
 /* === Visits Screen === */
