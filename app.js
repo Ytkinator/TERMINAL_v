@@ -16,6 +16,8 @@ var CATEGORY_SCREEN_SEQUENCE = ['tickets', 'alpaka', 'museum', 'skypark'];
 var runtimeCategoryScreenMap = {};
 
 var loadedCategories = [];
+var terminalConfigReady = false;
+var terminalConfigRequestInFlight = false;
 var dayTypesCalendar = []; // calendar of day types for 100 days ahead
 var TERMINAL_TICKET_SECTION_ENABLED = false;
 var TERMINAL_TICKET_SECTION_TITLE = 'Билеты';
@@ -307,6 +309,98 @@ function isTicketScreen(screenName) {
   return CATEGORY_SCREEN_SEQUENCE.indexOf(screenName) !== -1;
 }
 
+function setTerminalConfigState(status, title, details) {
+  var stateEl = document.getElementById('terminal-config-state');
+  var titleEl = document.getElementById('terminal-config-state-title');
+  var detailsEl = document.getElementById('terminal-config-state-details');
+  var retryBtn = document.getElementById('terminal-config-retry-btn');
+  if (!stateEl) return;
+
+  var isReady = status === 'ready';
+  stateEl.classList.toggle('terminal-config-state--hidden', isReady);
+  stateEl.classList.toggle('terminal-config-state--loading', status === 'loading');
+  stateEl.classList.toggle('terminal-config-state--error', status === 'error');
+
+  if (titleEl) {
+    titleEl.textContent = title || (status === 'loading' ? 'Загружаем настройки терминала' : 'Терминал временно недоступен');
+  }
+
+  if (detailsEl) {
+    detailsEl.textContent = details || '';
+  }
+
+  if (retryBtn) {
+    retryBtn.style.display = status === 'error' ? '' : 'none';
+  }
+
+  if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+  }
+}
+
+function hideTerminalCommerceSections() {
+  terminalConfigReady = false;
+  loadedCategories = [];
+  loadedVisitLocations = [];
+  runtimeCategoryScreenMap = {};
+  TERMINAL_TICKET_SECTION_ENABLED = false;
+  TERMINAL_SKIPASS_TOPUP_SECTION_ENABLED = false;
+  TERMINAL_RENTAL_SECTION_ENABLED = false;
+  TERMINAL_RENTAL_CREATE_ENABLED = false;
+  TERMINAL_RENTAL_PAYMENT_ENABLED = false;
+  TERMINAL_VISIT_SECTION_ENABLED = false;
+  TERMINAL_INSTRUCTOR_SERVICE_ENABLED = false;
+  TERMINAL_GROUP_LESSONS_ENABLED = false;
+  TERMINAL_INDIVIDUAL_LESSONS_ENABLED = false;
+  TERMINAL_GROUP_SECTION_ENABLED = false;
+  TERMINAL_CAROUSEL_ENABLED = false;
+  TERMINAL_CAROUSEL_IMAGES = [];
+  SCREEN_BANNERS = emptyScreenBanners();
+
+  CATEGORY_SCREEN_SEQUENCE.forEach(function(screenKey) {
+    var card = document.querySelector('[data-ticket-entry="' + screenKey + '"]');
+    if (card) {
+      card.style.display = 'none';
+    }
+  });
+
+  applyTicketSectionSettings();
+  applySkiSectionSettings();
+  applyVisitSectionSettings();
+  applyGroupSectionSettings();
+  populateMainBannerCarousel();
+  populateScreenBanners();
+}
+
+function markTerminalConfigUnavailable(title, details) {
+  hideTerminalCommerceSections();
+  setTerminalConfigState('error', title || 'Терминал временно недоступен', details || 'Не удалось получить настройки терминала. Обратитесь к администратору.');
+}
+
+function isTerminalConfigPayload(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return false;
+  }
+
+  var requiredKeys = [
+    'ticket_section_enabled',
+    'rental_section_enabled',
+    'rental_create_enabled',
+    'rental_payment_enabled',
+    'skipass_topup_section_enabled',
+    'visit_section_enabled',
+    'instructor_service_enabled',
+    'group_lessons_enabled',
+    'individual_lessons_enabled',
+    'carousel_enabled',
+    'categories'
+  ];
+
+  return requiredKeys.every(function(key) {
+    return Object.prototype.hasOwnProperty.call(data, key);
+  }) && Array.isArray(data.categories);
+}
+
 function applyTicketSectionSettings() {
   var section = document.getElementById('ticket-section');
   var title = document.getElementById('ticket-section-title');
@@ -321,6 +415,13 @@ function applyTicketSectionSettings() {
   }
 
   if (!TERMINAL_TICKET_SECTION_ENABLED) {
+    CATEGORY_SCREEN_SEQUENCE.forEach(function(screenKey) {
+      var card = document.querySelector('[data-ticket-entry="' + screenKey + '"]');
+      if (card) {
+        card.style.display = 'none';
+      }
+    });
+
     var activeTicketScreen = CATEGORY_SCREEN_SEQUENCE.some(function(screenKey) {
       var screen = document.getElementById('screen-' + screenKey);
       return Boolean(screen && screen.classList.contains('active'));
@@ -2507,13 +2608,43 @@ function updateMainCategoryCards(categories) {
 }
 
 function loadCategories() {
+  if (terminalConfigRequestInFlight) return;
+
+  terminalConfigRequestInFlight = true;
+  if (!terminalConfigReady) {
+    setTerminalConfigState(
+      'loading',
+      'Загружаем настройки терминала',
+      'Пожалуйста, подождите. Терминал получает актуальную конфигурацию с сервера.'
+    );
+  }
+
   var xhr = new XMLHttpRequest();
   xhr.open('POST', API_URL, true);
   xhr.setRequestHeader('Content-Type', 'application/json');
   xhr.timeout = 10000;
   xhr.onload = function() {
+    terminalConfigRequestInFlight = false;
+
     try {
+      if (xhr.status < 200 || xhr.status >= 300) {
+        throw new Error('HTTP ' + xhr.status);
+      }
+
       var data = JSON.parse(xhr.responseText);
+
+      if (!isTerminalConfigPayload(data)) {
+        console.error('[API] Invalid terminal config payload:', data);
+        markTerminalConfigUnavailable(
+          'Настройки терминала не получены',
+          'Сервер ответил без полной конфигурации терминала. Проверьте TERMINAL_CODE и BACKEND_API_BASE_URL.'
+        );
+        return;
+      }
+
+      terminalConfigReady = true;
+      setTerminalConfigState('ready');
+
       // Save day types calendar (overwrite each time)
       if (data.day_types_calendar && data.day_types_calendar.length > 0) {
         dayTypesCalendar = data.day_types_calendar;
@@ -2521,7 +2652,7 @@ function loadCategories() {
       }
       TERMINAL_CAROUSEL_ENABLED = data.carousel_enabled !== false;
       TERMINAL_CAROUSEL_IMAGES = TERMINAL_CAROUSEL_ENABLED ? getCarouselImageSources(data.carousel_images || []) : [];
-      TERMINAL_TICKET_SECTION_ENABLED = data.ticket_section_enabled !== false;
+      TERMINAL_TICKET_SECTION_ENABLED = data.ticket_section_enabled === true && data.categories.length > 0;
       TERMINAL_TICKET_SECTION_TITLE = (typeof data.ticket_section_title === 'string' && data.ticket_section_title.trim())
         ? data.ticket_section_title.trim()
         : 'Билеты';
@@ -2576,17 +2707,38 @@ function loadCategories() {
       populateMainBannerCarousel();
       TERMINAL_SPLASH_IMAGE = getImageSource(data.splash_image || '');
       applySplashImage();
-      if (data.categories && data.categories.length > 0) {
+      if (TERMINAL_TICKET_SECTION_ENABLED && data.categories.length > 0) {
         loadedCategories = data.categories;
         renderCategories(data.categories);
         console.log('[API] Loaded ' + data.categories.length + ' categories');
+      } else {
+        loadedCategories = [];
+        renderCategories([]);
       }
     } catch (e) {
       console.error('[API] Parse error:', e);
+      markTerminalConfigUnavailable(
+        'Терминал временно недоступен',
+        'Не удалось прочитать настройки терминала с сервера. Проверьте интернет и настройки подключения.'
+      );
     }
   };
-  xhr.onerror = function() { console.error('[API] Network error'); };
-  xhr.ontimeout = function() { console.error('[API] Timeout'); };
+  xhr.onerror = function() {
+    terminalConfigRequestInFlight = false;
+    console.error('[API] Network error');
+    markTerminalConfigUnavailable(
+      'Нет связи с сервером',
+      'Терминал не смог подключиться к серверу настроек. Проверьте интернет и BACKEND_API_BASE_URL.'
+    );
+  };
+  xhr.ontimeout = function() {
+    terminalConfigRequestInFlight = false;
+    console.error('[API] Timeout');
+    markTerminalConfigUnavailable(
+      'Сервер не отвечает',
+      'Истекло время ожидания настроек терминала. Проверьте соединение и повторите попытку.'
+    );
+  };
   xhr.send('{}'); // credentials injected by server.py
 }
 
