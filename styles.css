@@ -625,6 +625,10 @@ body {
   grid-template-columns: 1fr 1fr;
 }
 
+.terminal-rental-actions--single {
+  grid-template-columns: 1fr;
+}
+
 .terminal-rental-actions > .terminal-rental-action:only-child {
   grid-column: 1 / -1;
 }
@@ -702,6 +706,24 @@ body {
   color: var(--accent-light);
 }
 
+.rental-action-card {
+  width: min(720px, calc(100vw - 48px));
+}
+
+.rental-action-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.rental-action-options--single {
+  grid-template-columns: 1fr;
+}
+
+.rental-action-option {
+  height: 136px;
+}
+
 .terminal-visit-action {
   position: relative;
   min-height: 168px;
@@ -748,6 +770,94 @@ body {
   max-width: 78%;
   font-size: 28px;
   line-height: 1.12;
+}
+
+#terminal-ski-section .terminal-rental-action,
+.terminal-instructor-action,
+.terminal-visit-action {
+  position: relative;
+  min-height: 168px;
+  height: auto;
+  align-items: stretch;
+  justify-content: flex-start;
+  overflow: hidden;
+  padding: 0;
+  border-color: rgba(255, 255, 255, 0.1);
+  background: #12161e;
+  text-align: left;
+}
+
+#terminal-ski-section .terminal-rental-action:hover,
+.terminal-instructor-action:hover,
+.terminal-visit-action:hover {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.terminal-main-action__photo,
+.terminal-main-action__gradient {
+  position: absolute;
+  inset: 0;
+}
+
+.terminal-main-action__photo {
+  background-image: linear-gradient(145deg, rgba(0, 172, 207, 0.42), rgba(212, 45, 90, 0.24));
+  background-size: cover;
+  background-position: center;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#terminal-ski-section .terminal-rental-action:hover .terminal-main-action__photo,
+.terminal-instructor-action:hover .terminal-main-action__photo,
+.terminal-visit-action:hover .terminal-main-action__photo {
+  transform: scale(1.05);
+}
+
+.terminal-main-action__gradient {
+  background: linear-gradient(to bottom,
+    rgba(0, 0, 0, 0.08) 0%,
+    rgba(0, 0, 0, 0.22) 42%,
+    rgba(0, 0, 0, 0.72) 82%,
+    rgba(0, 0, 0, 0.92) 100%
+  );
+}
+
+.terminal-main-action__body {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  min-height: 168px;
+  padding: 20px 24px;
+}
+
+.terminal-main-action__bottom {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.terminal-main-action__icon {
+  width: 56px;
+  height: 56px;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.terminal-main-action__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.terminal-main-action__title {
+  color: #fff;
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: 0;
 }
 
 /* === Group lessons === */
@@ -2548,6 +2658,7 @@ body {
   font-weight: 700;
 }
 
+.rental-client-card--large .group-client-summary,
 .instructor-client-card .group-client-summary {
   grid-column: 1 / -1;
 }
@@ -2830,13 +2941,13 @@ body {
 
 /* === Payment Loader === */
 .payment-loader {
-  position: absolute;
+  position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 130;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s ease;
@@ -3114,6 +3225,7 @@ body {
 .rental-client-card--large .rental-client-header,
 .rental-client-card--large .rental-client-error,
 .rental-client-card--large .rental-client-keyboard,
+.rental-client-card--large .group-age-toggle,
 .rental-client-card--large .rental-client-actions {
   grid-column: 1 / -1;
 }

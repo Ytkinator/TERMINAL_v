@@ -188,28 +188,64 @@
           </div>
         </section>
 
-        <!-- Пополнение скипасса -->
-        <section class="terminal-rental-section" id="terminal-skipass-topup-section" style="display:none">
-          <h3 class="section-title" id="terminal-skipass-topup-title">Пополнение скипасса</h3>
-          <div class="terminal-rental-actions">
-            <button class="terminal-rental-action" id="terminal-skipass-topup-open-btn" type="button" onclick="handleSkipassTopupSectionClick()">
-              <i data-lucide="credit-card" class="terminal-rental-action-icon"></i>
-              <span>Пополнить скипасс</span>
+        <!-- Служба инструкторов -->
+        <section class="terminal-instructor-section" id="terminal-group-section" style="display:none">
+          <h3 class="section-title" id="terminal-group-title">Служба инструкторов</h3>
+          <div class="terminal-instructor-actions">
+            <button class="terminal-instructor-action" id="terminal-individual-open-btn" type="button" onclick="handleIndividualLessonsSectionClick()">
+              <span class="terminal-main-action__photo" id="terminal-individual-action-image"></span>
+              <span class="terminal-main-action__gradient"></span>
+              <span class="terminal-main-action__body">
+                <span class="terminal-main-action__bottom">
+                  <i data-lucide="user-round" class="terminal-main-action__icon"></i>
+                  <span class="terminal-main-action__text">
+                    <span class="terminal-main-action__title" id="terminal-individual-action-title">Индивидуальные занятия</span>
+                  </span>
+                </span>
+              </span>
+            </button>
+            <button class="terminal-instructor-action" id="terminal-group-open-btn" type="button" onclick="handleGroupSectionClick()">
+              <span class="terminal-main-action__photo" id="terminal-group-action-image"></span>
+              <span class="terminal-main-action__gradient"></span>
+              <span class="terminal-main-action__body">
+                <span class="terminal-main-action__bottom">
+                  <i data-lucide="users" class="terminal-main-action__icon"></i>
+                  <span class="terminal-main-action__text">
+                    <span class="terminal-main-action__title" id="terminal-group-action-title">Групповые занятия</span>
+                  </span>
+                </span>
+              </span>
             </button>
           </div>
         </section>
 
-        <!-- Прокат -->
-        <section class="terminal-rental-section" id="terminal-rental-section" style="display:none">
-          <h3 class="section-title" id="terminal-rental-title">Прокат</h3>
+        <!-- Горнолыжный комплекс -->
+        <section class="terminal-rental-section" id="terminal-ski-section" style="display:none">
+          <h3 class="section-title" id="terminal-ski-title">Горнолыжный комплекс</h3>
           <div class="terminal-rental-actions">
-            <button class="terminal-rental-action" id="terminal-rental-create-btn" type="button" onclick="handleRentalCreateClick()" style="display:none">
-              <i data-lucide="clipboard-plus" class="terminal-rental-action-icon"></i>
-              <span>Создать прокат</span>
+            <button class="terminal-rental-action" id="terminal-skipass-topup-open-btn" type="button" onclick="handleSkipassTopupSectionClick()" style="display:none">
+              <span class="terminal-main-action__photo" id="terminal-skipass-topup-action-image"></span>
+              <span class="terminal-main-action__gradient"></span>
+              <span class="terminal-main-action__body">
+                <span class="terminal-main-action__bottom">
+                  <i data-lucide="credit-card" class="terminal-main-action__icon"></i>
+                  <span class="terminal-main-action__text">
+                    <span class="terminal-main-action__title">Пополнить скипасс</span>
+                  </span>
+                </span>
+              </span>
             </button>
-            <button class="terminal-rental-action" id="terminal-rental-payment-btn" type="button" onclick="handleRentalPaymentClick()" style="display:none">
-              <i data-lucide="qr-code" class="terminal-rental-action-icon"></i>
-              <span>Оплатить прокат</span>
+            <button class="terminal-rental-action" id="terminal-rental-open-btn" type="button" onclick="openRentalActionModal()" style="display:none">
+              <span class="terminal-main-action__photo" id="terminal-rental-action-image"></span>
+              <span class="terminal-main-action__gradient"></span>
+              <span class="terminal-main-action__body">
+                <span class="terminal-main-action__bottom">
+                  <i data-lucide="snowflake" class="terminal-main-action__icon"></i>
+                  <span class="terminal-main-action__text">
+                    <span class="terminal-main-action__title">Прокат снаряжения</span>
+                  </span>
+                </span>
+              </span>
             </button>
           </div>
         </section>
@@ -218,29 +254,6 @@
         <section class="terminal-rental-section" id="terminal-visit-section" style="display:none">
           <h3 class="section-title" id="terminal-visit-title">Посещения</h3>
           <div class="terminal-rental-actions terminal-visit-actions" id="terminal-visit-actions"></div>
-        </section>
-
-        <!-- Служба инструкторов -->
-        <section class="terminal-instructor-section" id="terminal-group-section" style="display:none">
-          <h3 class="section-title" id="terminal-group-title">Служба инструкторов</h3>
-          <div class="terminal-instructor-actions">
-            <button class="terminal-instructor-action" id="terminal-group-open-btn" type="button" onclick="handleGroupSectionClick()">
-              <span class="terminal-instructor-action__image" id="terminal-group-action-image"></span>
-              <span class="terminal-instructor-action__overlay"></span>
-              <span class="terminal-instructor-action__content">
-                <i data-lucide="users" class="terminal-rental-action-icon"></i>
-                <span id="terminal-group-action-title">Групповые занятия</span>
-              </span>
-            </button>
-            <button class="terminal-instructor-action" id="terminal-individual-open-btn" type="button" onclick="handleIndividualLessonsSectionClick()">
-              <span class="terminal-instructor-action__image" id="terminal-individual-action-image"></span>
-              <span class="terminal-instructor-action__overlay"></span>
-              <span class="terminal-instructor-action__content">
-                <i data-lucide="user-round" class="terminal-rental-action-icon"></i>
-                <span id="terminal-individual-action-title">Индивидуальные занятия</span>
-              </span>
-            </button>
-          </div>
         </section>
 
         <!-- Спейсер -->
@@ -1071,6 +1084,41 @@
       </div>
     </div>
 
+    <!-- Лоадер подтверждения операций -->
+    <div class="payment-loader" id="payment-loader">
+      <div class="payment-loader-content" id="payment-loader-generic">
+        <div class="payment-spinner"></div>
+        <p class="payment-loader-text">Подтверждаем операцию...</p>
+      </div>
+      <div class="payment-loader-content" id="payment-loader-card" style="display:none">
+        <div class="payment-spinner"></div>
+        <p class="payment-loader-text">Ожидание оплаты картой</p>
+        <p class="payment-loader-amount" id="payment-loader-amount">0 ₽</p>
+      </div>
+    </div>
+
+    <!-- Выбор действия проката -->
+    <div class="rental-client-modal" id="rental-action-modal">
+      <div class="rental-client-card rental-action-card">
+        <div class="rental-client-header">
+          <h2>Прокат снаряжения</h2>
+          <button class="rental-client-close" type="button" onclick="closeRentalActionModal()">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="rental-action-options">
+          <button class="terminal-rental-action rental-action-option" id="terminal-rental-create-btn" type="button" onclick="handleRentalCreateClick()" style="display:none">
+            <i data-lucide="clipboard-plus" class="terminal-rental-action-icon"></i>
+            <span>Новый заказ</span>
+          </button>
+          <button class="terminal-rental-action rental-action-option" id="terminal-rental-payment-btn" type="button" onclick="handleRentalPaymentClick()" style="display:none">
+            <i data-lucide="qr-code" class="terminal-rental-action-icon"></i>
+            <span>Оплатить заказ</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Форма клиента для создания проката -->
     <div class="rental-client-modal rental-client-modal--solid" id="rental-client-modal">
       <form class="rental-client-card rental-client-card--large" autocomplete="off" onsubmit="submitRentalClientForm(event)">
@@ -1124,8 +1172,8 @@
       </form>
     </div>
 
-    <div class="rental-client-modal" id="group-client-modal">
-      <form class="rental-client-card group-client-card" onsubmit="submitGroupClientForm(event)">
+    <div class="rental-client-modal rental-client-modal--solid" id="group-client-modal">
+      <form class="rental-client-card rental-client-card--large group-client-card" autocomplete="off" onsubmit="submitGroupClientForm(event)">
         <div class="rental-client-header">
           <h2>Запись на занятие</h2>
           <button class="rental-client-close" type="button" onclick="closeGroupClientForm()">
@@ -1133,19 +1181,47 @@
           </button>
         </div>
         <div class="group-client-summary" id="group-client-summary"></div>
-        <label class="rental-client-field">
+        <label class="rental-client-field rental-client-field--active" data-group-client-field="name">
           <span>Имя клиента</span>
-          <input id="group-client-name" type="text" autocomplete="name" maxlength="255">
+          <input
+            id="group-client-name"
+            type="text"
+            name="group-client-name-off"
+            autocomplete="new-password"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            inputmode="none"
+            maxlength="255"
+            readonly
+            onfocus="setGroupClientActiveField('name')"
+            onclick="setGroupClientActiveField('name')"
+          >
         </label>
-        <label class="rental-client-field">
+        <label class="rental-client-field" data-group-client-field="phone">
           <span>Телефон</span>
-          <input id="group-client-phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="255">
+          <input
+            id="group-client-phone"
+            type="tel"
+            name="group-client-phone-off"
+            autocomplete="new-password"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            inputmode="none"
+            maxlength="18"
+            placeholder="+7 (___) ___-__-__"
+            readonly
+            onfocus="setGroupClientActiveField('phone')"
+            onclick="setGroupClientActiveField('phone')"
+          >
         </label>
         <label class="group-age-toggle">
           <input id="group-client-child" type="checkbox">
           <span>Ребенок</span>
         </label>
         <p class="rental-client-error" id="group-client-error"></p>
+        <div class="rental-client-keyboard" id="group-client-keyboard" aria-label="Экранная клавиатура"></div>
         <div class="rental-client-actions">
           <button class="rental-client-secondary" type="button" onclick="closeGroupClientForm()">Отмена</button>
           <button class="rental-client-primary" type="submit">Продолжить</button>

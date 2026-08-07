@@ -21,8 +21,10 @@ var TERMINAL_TICKET_SECTION_ENABLED = false;
 var TERMINAL_TICKET_SECTION_TITLE = 'Билеты';
 var TERMINAL_SKIPASS_TOPUP_SECTION_ENABLED = false;
 var TERMINAL_SKIPASS_TOPUP_SECTION_TITLE = 'Пополнение скипасса';
+var TERMINAL_SKIPASS_TOPUP_IMAGE = '';
 var TERMINAL_RENTAL_SECTION_ENABLED = false;
 var TERMINAL_RENTAL_SECTION_TITLE = 'Прокат';
+var TERMINAL_RENTAL_SECTION_IMAGE = '';
 var TERMINAL_RENTAL_CREATE_ENABLED = false;
 var TERMINAL_RENTAL_PAYMENT_ENABLED = false;
 var pendingRentalPaymentOrder = null;
@@ -52,6 +54,7 @@ var TERMINAL_GROUP_FREE_BOOKING_ENABLED = true;
 var loadedGroups = [];
 var selectedGroupDate = '';
 var pendingGroupBooking = null;
+var groupClientActiveField = 'name';
 var loadedInstructorCatalog = null;
 var loadedInstructors = [];
 var selectedInstructorDate = '';
@@ -330,40 +333,67 @@ function applyTicketSectionSettings() {
 }
 
 function applySkipassTopupSectionSettings() {
-  var section = document.getElementById('terminal-skipass-topup-section');
-  var title = document.getElementById('terminal-skipass-topup-title');
-
-  if (title) {
-    title.textContent = TERMINAL_SKIPASS_TOPUP_SECTION_TITLE || 'Пополнение скипасса';
-  }
-
-  if (section) {
-    section.style.display = TERMINAL_SKIPASS_TOPUP_SECTION_ENABLED ? '' : 'none';
-  }
+  applySkiSectionSettings();
 }
 
 function applyRentalSectionSettings() {
-  var section = document.getElementById('terminal-rental-section');
-  var title = document.getElementById('terminal-rental-title');
+  applySkiSectionSettings();
+}
+
+function setTerminalMainActionImage(elementId, imageUrl) {
+  var imageElement = document.getElementById(elementId);
+  if (!imageElement) return;
+
+  imageElement.style.backgroundImage = imageUrl ? 'url("' + imageUrl + '")' : '';
+}
+
+function applySkiSectionSettings() {
+  var section = document.getElementById('terminal-ski-section');
+  var skipassButton = document.getElementById('terminal-skipass-topup-open-btn');
+  var rentalButton = document.getElementById('terminal-rental-open-btn');
   var createButton = document.getElementById('terminal-rental-create-btn');
   var paymentButton = document.getElementById('terminal-rental-payment-btn');
+  var hasRentalActions = TERMINAL_RENTAL_SECTION_ENABLED && (TERMINAL_RENTAL_CREATE_ENABLED || TERMINAL_RENTAL_PAYMENT_ENABLED);
+  var visibleMainActions = 0;
+  var visibleRentalOptions = 0;
 
-  if (title) {
-    title.textContent = TERMINAL_RENTAL_SECTION_TITLE || 'Прокат';
-    title.removeAttribute('data-i18n');
+  setTerminalMainActionImage('terminal-skipass-topup-action-image', TERMINAL_SKIPASS_TOPUP_IMAGE);
+  setTerminalMainActionImage('terminal-rental-action-image', TERMINAL_RENTAL_SECTION_IMAGE);
+
+  if (skipassButton) {
+    skipassButton.style.display = TERMINAL_SKIPASS_TOPUP_SECTION_ENABLED ? '' : 'none';
+    if (TERMINAL_SKIPASS_TOPUP_SECTION_ENABLED) visibleMainActions++;
+  }
+
+  if (rentalButton) {
+    rentalButton.style.display = hasRentalActions ? '' : 'none';
+    if (hasRentalActions) visibleMainActions++;
   }
 
   if (createButton) {
     createButton.style.display = TERMINAL_RENTAL_CREATE_ENABLED ? '' : 'none';
+    if (TERMINAL_RENTAL_CREATE_ENABLED) visibleRentalOptions++;
   }
 
   if (paymentButton) {
     paymentButton.style.display = TERMINAL_RENTAL_PAYMENT_ENABLED ? '' : 'none';
+    if (TERMINAL_RENTAL_PAYMENT_ENABLED) visibleRentalOptions++;
   }
 
   if (section) {
-    var hasVisibleActions = TERMINAL_RENTAL_CREATE_ENABLED || TERMINAL_RENTAL_PAYMENT_ENABLED;
-    section.style.display = TERMINAL_RENTAL_SECTION_ENABLED && hasVisibleActions ? '' : 'none';
+    var actions = section.querySelector('.terminal-rental-actions');
+    if (actions) {
+      actions.classList.toggle('terminal-rental-actions--single', visibleMainActions === 1);
+    }
+  }
+
+  var rentalOptions = document.querySelector('#rental-action-modal .rental-action-options');
+  if (rentalOptions) {
+    rentalOptions.classList.toggle('rental-action-options--single', visibleRentalOptions === 1);
+  }
+
+  if (section) {
+    section.style.display = TERMINAL_SKIPASS_TOPUP_SECTION_ENABLED || hasRentalActions ? '' : 'none';
   }
 }
 
@@ -405,9 +435,16 @@ function renderVisitLocationActions(actions) {
     fallback.type = 'button';
     fallback.onclick = function() { handleVisitSectionClick(); };
     fallback.innerHTML =
-      '<span class="terminal-visit-action__placeholder"><i data-lucide="calendar-plus"></i></span>' +
-      '<span class="terminal-visit-action__overlay"></span>' +
-      '<span class="terminal-visit-action__content">Записаться на посещение</span>';
+      '<span class="terminal-main-action__photo"></span>' +
+      '<span class="terminal-main-action__gradient"></span>' +
+      '<span class="terminal-main-action__body">' +
+        '<span class="terminal-main-action__bottom">' +
+          '<i data-lucide="calendar-plus" class="terminal-main-action__icon"></i>' +
+          '<span class="terminal-main-action__text">' +
+            '<span class="terminal-main-action__title">Записаться на посещение</span>' +
+          '</span>' +
+        '</span>' +
+      '</span>';
     actions.appendChild(fallback);
     lucide.createIcons();
     return;
@@ -421,10 +458,17 @@ function renderVisitLocationActions(actions) {
     button.onclick = function() { handleVisitSectionClick(location.id); };
     button.innerHTML =
       (image
-        ? '<span class="terminal-visit-action__image" style="background-image:url(&quot;' + escapeAttr(image) + '&quot;)"></span>'
-        : '<span class="terminal-visit-action__placeholder"><i data-lucide="map-pin"></i></span>') +
-      '<span class="terminal-visit-action__overlay"></span>' +
-      '<span class="terminal-visit-action__content">' + escapeHtml(location.name || 'Локация') + '</span>';
+        ? '<span class="terminal-main-action__photo" style="background-image:url(&quot;' + escapeAttr(image) + '&quot;)"></span>'
+        : '<span class="terminal-main-action__photo"></span>') +
+      '<span class="terminal-main-action__gradient"></span>' +
+      '<span class="terminal-main-action__body">' +
+        '<span class="terminal-main-action__bottom">' +
+          '<i data-lucide="map-pin" class="terminal-main-action__icon"></i>' +
+          '<span class="terminal-main-action__text">' +
+            '<span class="terminal-main-action__title">' + escapeHtml(location.name || 'Локация') + '</span>' +
+          '</span>' +
+        '</span>' +
+      '</span>';
     actions.appendChild(button);
   });
 
@@ -466,13 +510,8 @@ function applyGroupSectionSettings() {
     individualButton.style.display = TERMINAL_INDIVIDUAL_LESSONS_ENABLED ? '' : 'none';
   }
 
-  if (groupImage) {
-    groupImage.style.backgroundImage = TERMINAL_GROUP_LESSONS_IMAGE ? 'url("' + TERMINAL_GROUP_LESSONS_IMAGE + '")' : '';
-  }
-
-  if (individualImage) {
-    individualImage.style.backgroundImage = TERMINAL_INDIVIDUAL_LESSONS_IMAGE ? 'url("' + TERMINAL_INDIVIDUAL_LESSONS_IMAGE + '")' : '';
-  }
+  setTerminalMainActionImage('terminal-group-action-image', TERMINAL_GROUP_LESSONS_IMAGE);
+  setTerminalMainActionImage('terminal-individual-action-image', TERMINAL_INDIVIDUAL_LESSONS_IMAGE);
 
   if (section) {
     var hasVisibleActions = TERMINAL_GROUP_LESSONS_ENABLED || TERMINAL_INDIVIDUAL_LESSONS_ENABLED;
@@ -524,12 +563,29 @@ function handleIndividualLessonsSectionClick() {
   loadTerminalInstructors();
 }
 
+function openRentalActionModal() {
+  if (!TERMINAL_RENTAL_SECTION_ENABLED || (!TERMINAL_RENTAL_CREATE_ENABLED && !TERMINAL_RENTAL_PAYMENT_ENABLED)) {
+    showAlert('Прокат отключен');
+    return;
+  }
+
+  applySkiSectionSettings();
+  var modal = document.getElementById('rental-action-modal');
+  if (modal) modal.classList.add('active');
+}
+
+function closeRentalActionModal() {
+  var modal = document.getElementById('rental-action-modal');
+  if (modal) modal.classList.remove('active');
+}
+
 function handleRentalCreateClick() {
   if (!TERMINAL_RENTAL_CREATE_ENABLED) {
     showAlert('Создание проката отключено');
     return;
   }
 
+  closeRentalActionModal();
   openRentalClientForm();
 }
 
@@ -758,6 +814,7 @@ function handleRentalPaymentClick() {
     return;
   }
 
+  closeRentalActionModal();
   var orderKey = window.prompt('Отсканируйте QR заказа проката');
   if (!orderKey || !orderKey.trim()) {
     return;
@@ -1023,6 +1080,7 @@ function openGroupClientForm(group) {
   if (phoneInput) phoneInput.value = '';
   if (childInput) childInput.checked = false;
   if (errorEl) errorEl.textContent = '';
+  setGroupClientActiveField('name');
   if (modal) modal.classList.add('active');
 
   setTimeout(function() {
@@ -1033,6 +1091,99 @@ function openGroupClientForm(group) {
 function closeGroupClientForm() {
   var modal = document.getElementById('group-client-modal');
   if (modal) modal.classList.remove('active');
+}
+
+function setGroupClientActiveField(field) {
+  groupClientActiveField = field === 'phone' ? 'phone' : 'name';
+
+  document.querySelectorAll('[data-group-client-field]').forEach(function(fieldEl) {
+    fieldEl.classList.toggle(
+      'rental-client-field--active',
+      fieldEl.getAttribute('data-group-client-field') === groupClientActiveField
+    );
+  });
+
+  renderGroupClientKeyboard();
+}
+
+function renderGroupClientKeyboard() {
+  var keyboardEl = document.getElementById('group-client-keyboard');
+  if (!keyboardEl) return;
+
+  var layout = groupClientActiveField === 'phone' ? RENTAL_CLIENT_PHONE_KEYBOARD : RENTAL_CLIENT_NAME_KEYBOARD;
+  keyboardEl.className = 'rental-client-keyboard rental-client-keyboard--' + groupClientActiveField;
+  keyboardEl.innerHTML = '';
+
+  layout.forEach(function(row) {
+    var rowEl = document.createElement('div');
+    rowEl.className = 'rental-client-keyboard-row';
+
+    row.forEach(function(label) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'rental-client-keyboard-key';
+      if (label === 'Пробел') {
+        button.classList.add('rental-client-keyboard-key--space');
+      } else if (label === 'Стереть' || label === 'Очистить') {
+        button.classList.add('rental-client-keyboard-key--action');
+      }
+      button.textContent = label === 'Стереть' ? '⌫' : label;
+      button.setAttribute('aria-label', label);
+      button.addEventListener('click', function() {
+        handleGroupClientKeyboardKey(label);
+      });
+      rowEl.appendChild(button);
+    });
+
+    keyboardEl.appendChild(rowEl);
+  });
+}
+
+function handleGroupClientKeyboardKey(label) {
+  var errorEl = document.getElementById('group-client-error');
+  if (errorEl) errorEl.textContent = '';
+
+  if (groupClientActiveField === 'phone') {
+    handleGroupClientPhoneKey(label);
+    return;
+  }
+
+  handleGroupClientNameKey(label);
+}
+
+function handleGroupClientNameKey(label) {
+  var input = document.getElementById('group-client-name');
+  if (!input) return;
+
+  if (label === 'Стереть') {
+    input.value = input.value.slice(0, -1);
+    return;
+  }
+
+  if (label === 'Очистить') {
+    input.value = '';
+    return;
+  }
+
+  var value = label === 'Пробел' ? ' ' : label;
+  input.value = normalizeRentalClientName(input.value + value);
+}
+
+function handleGroupClientPhoneKey(label) {
+  var input = document.getElementById('group-client-phone');
+  if (!input) return;
+
+  var digits = rentalPhoneDigits(input.value);
+
+  if (label === 'Стереть') {
+    digits = digits.slice(0, -1);
+  } else if (label === 'Очистить' || label === '+7') {
+    digits = '';
+  } else if (/^\d$/.test(label) && digits.length < 10) {
+    digits += label;
+  }
+
+  input.value = formatRentalPhoneFromDigits(digits);
 }
 
 function submitGroupClientForm(event) {
@@ -1046,16 +1197,17 @@ function submitGroupClientForm(event) {
   var phoneInput = document.getElementById('group-client-phone');
   var childInput = document.getElementById('group-client-child');
   var errorEl = document.getElementById('group-client-error');
-  var clientName = nameInput ? nameInput.value.trim() : '';
+  var clientName = nameInput ? normalizeRentalClientName(nameInput.value).trim() : '';
   var clientPhone = phoneInput ? phoneInput.value.trim() : '';
+  var phoneDigits = rentalPhoneDigits(clientPhone);
 
-  if (!clientName || !clientPhone) {
-    if (errorEl) errorEl.textContent = 'Укажите имя и телефон клиента';
+  if (!clientName || phoneDigits.length !== 10) {
+    if (errorEl) errorEl.textContent = 'Укажите имя и полный телефон клиента';
     return;
   }
 
   pendingGroupBooking.clientName = clientName;
-  pendingGroupBooking.clientPhone = clientPhone;
+  pendingGroupBooking.clientPhone = formatRentalPhoneFromDigits(phoneDigits);
   pendingGroupBooking.isChild = childInput ? childInput.checked : false;
   closeGroupClientForm();
 
@@ -2377,10 +2529,12 @@ function loadCategories() {
       TERMINAL_SKIPASS_TOPUP_SECTION_TITLE = (typeof data.skipass_topup_section_title === 'string' && data.skipass_topup_section_title.trim())
         ? data.skipass_topup_section_title.trim()
         : 'Пополнение скипасса';
+      TERMINAL_SKIPASS_TOPUP_IMAGE = getImageSource(data.skipass_topup_image || '');
       TERMINAL_RENTAL_SECTION_ENABLED = data.rental_section_enabled === true;
       TERMINAL_RENTAL_SECTION_TITLE = (typeof data.rental_section_title === 'string' && data.rental_section_title.trim())
         ? data.rental_section_title.trim()
         : 'Прокат';
+      TERMINAL_RENTAL_SECTION_IMAGE = getImageSource(data.rental_section_image || '');
       TERMINAL_RENTAL_CREATE_ENABLED = data.rental_create_enabled === true;
       TERMINAL_RENTAL_PAYMENT_ENABLED = data.rental_payment_enabled === true;
       TERMINAL_VISIT_SECTION_ENABLED = data.visit_section_enabled === true;
