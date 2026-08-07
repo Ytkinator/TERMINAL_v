@@ -7,7 +7,7 @@ var LOCAL_SERVER = (window.location && window.location.origin && window.location
   : 'http://localhost:9999';
 var API_URL = LOCAL_SERVER + '/api/categories'; // proxied via server.py (credentials injected server-side)
 var VERSION_URL = LOCAL_SERVER + '/api/version';
-var TERMINAL_SYSTEM_VERSION = '3.1.0';
+var TERMINAL_SYSTEM_VERSION = '3.1.1';
 var TERMINAL_SYSTEM_NAME = '';
 
 // Map API category_id → screen key
@@ -319,7 +319,7 @@ function applySystemVersionInfo() {
   var terminalNameEl = document.getElementById('system-terminal-name');
 
   if (versionEl) {
-    versionEl.textContent = TERMINAL_SYSTEM_VERSION || '3.0.0';
+    versionEl.textContent = TERMINAL_SYSTEM_VERSION || '3.1.1';
   }
 
   if (terminalNameEl) {
@@ -2128,18 +2128,21 @@ function renderVisitDates() {
 }
 
 function renderVisitFilters() {
-  var locationEl = document.getElementById('visit-location-select');
-  var resourceEl = document.getElementById('visit-resource-select');
-  var partyEl = document.getElementById('visit-party-size');
+  var locationEl = document.getElementById('visit-location-options');
+  var resourceEl = document.getElementById('visit-resource-options');
+  var partyEl = document.getElementById('visit-party-size-options');
 
   if (locationEl) {
     locationEl.innerHTML = '';
     loadedVisitLocations.forEach(function(location) {
-      var option = document.createElement('option');
-      option.value = location.id;
-      option.textContent = location.name || 'Локация';
-      option.selected = parseInt(location.id) === parseInt(selectedVisitLocationId || 0);
-      locationEl.appendChild(option);
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'visit-choice-pill' + (parseInt(location.id) === parseInt(selectedVisitLocationId || 0) ? ' active' : '');
+      btn.textContent = location.name || 'Локация';
+      btn.onclick = function() {
+        handleVisitLocationChange(location.id);
+      };
+      locationEl.appendChild(btn);
     });
   }
 
@@ -2148,23 +2151,39 @@ function renderVisitFilters() {
 
   if (resourceEl) {
     resourceEl.innerHTML = '';
-    var allOption = document.createElement('option');
-    allOption.value = '';
-    allOption.textContent = resources.length > 0 ? 'Все площадки' : 'Не требуется';
-    allOption.selected = !selectedVisitResourceId;
-    resourceEl.appendChild(allOption);
+    var allButton = document.createElement('button');
+    allButton.type = 'button';
+    allButton.className = 'visit-choice-pill' + (!selectedVisitResourceId ? ' active' : '');
+    allButton.textContent = resources.length > 0 ? 'Все площадки' : 'Не требуется';
+    allButton.onclick = function() {
+      handleVisitResourceChange(null);
+    };
+    resourceEl.appendChild(allButton);
 
     resources.forEach(function(resource) {
-      var option = document.createElement('option');
-      option.value = resource.id;
-      option.textContent = resource.name || 'Площадка';
-      option.selected = parseInt(resource.id) === parseInt(selectedVisitResourceId || 0);
-      resourceEl.appendChild(option);
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'visit-choice-pill' + (parseInt(resource.id) === parseInt(selectedVisitResourceId || 0) ? ' active' : '');
+      btn.textContent = resource.name || 'Площадка';
+      btn.onclick = function() {
+        handleVisitResourceChange(resource.id);
+      };
+      resourceEl.appendChild(btn);
     });
   }
 
   if (partyEl) {
-    partyEl.value = String(selectedVisitPartySize || 1);
+    partyEl.innerHTML = '';
+    [1, 2, 3, 4, 5, 6].forEach(function(size) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'visit-party-option' + (parseInt(selectedVisitPartySize || 1) === size ? ' active' : '');
+      btn.textContent = String(size);
+      btn.onclick = function() {
+        handleVisitPartySizeChange(size);
+      };
+      partyEl.appendChild(btn);
+    });
   }
 }
 
@@ -2174,23 +2193,22 @@ function selectedVisitLocation() {
   }) || null;
 }
 
-function handleVisitLocationChange() {
-  var select = document.getElementById('visit-location-select');
-  selectedVisitLocationId = select && select.value ? parseInt(select.value) : null;
+function handleVisitLocationChange(locationId) {
+  selectedVisitLocationId = locationId ? parseInt(locationId) : null;
   selectedVisitResourceId = null;
   renderVisitFilters();
   loadVisitAvailability();
 }
 
-function handleVisitResourceChange() {
-  var select = document.getElementById('visit-resource-select');
-  selectedVisitResourceId = select && select.value ? parseInt(select.value) : null;
+function handleVisitResourceChange(resourceId) {
+  selectedVisitResourceId = resourceId ? parseInt(resourceId) : null;
+  renderVisitFilters();
   loadVisitAvailability();
 }
 
-function handleVisitPartySizeChange() {
-  var select = document.getElementById('visit-party-size');
-  selectedVisitPartySize = select && select.value ? parseInt(select.value) : 1;
+function handleVisitPartySizeChange(size) {
+  selectedVisitPartySize = size ? parseInt(size) : 1;
+  renderVisitFilters();
   loadVisitAvailability();
 }
 
@@ -2306,7 +2324,6 @@ function openVisitClientForm(slot) {
   var summary = document.getElementById('visit-client-summary');
   var nameInput = document.getElementById('visit-client-name');
   var phoneInput = document.getElementById('visit-client-phone');
-  var ageInput = document.getElementById('visit-client-age');
   var errorEl = document.getElementById('visit-client-error');
 
   if (summary) {
@@ -2322,10 +2339,24 @@ function openVisitClientForm(slot) {
     phoneInput.value = '';
     phoneInput.setAttribute('autocomplete', 'new-password');
   }
-  if (ageInput) ageInput.value = 'adult';
+  pendingVisitBooking.isChild = false;
+  renderVisitClientAgeOptions();
   if (errorEl) errorEl.textContent = '';
   setVisitClientActiveField('name');
   if (modal) modal.classList.add('active');
+}
+
+function setVisitClientAge(age) {
+  if (!pendingVisitBooking) return;
+  pendingVisitBooking.isChild = age === 'child';
+  renderVisitClientAgeOptions();
+}
+
+function renderVisitClientAgeOptions() {
+  document.querySelectorAll('[data-visit-age]').forEach(function(btn) {
+    var age = btn.getAttribute('data-visit-age');
+    btn.classList.toggle('active', pendingVisitBooking && pendingVisitBooking.isChild === (age === 'child'));
+  });
 }
 
 function closeVisitClientForm() {
@@ -2435,7 +2466,6 @@ function submitVisitClientForm(event) {
 
   var nameInput = document.getElementById('visit-client-name');
   var phoneInput = document.getElementById('visit-client-phone');
-  var ageInput = document.getElementById('visit-client-age');
   var errorEl = document.getElementById('visit-client-error');
   var clientName = nameInput ? normalizeRentalClientName(nameInput.value).trim() : '';
   var clientPhone = phoneInput ? phoneInput.value.trim() : '';
@@ -2447,7 +2477,6 @@ function submitVisitClientForm(event) {
 
   pendingVisitBooking.clientName = clientName;
   pendingVisitBooking.clientPhone = formatRentalPhoneFromDigits(rentalPhoneDigits(clientPhone));
-  pendingVisitBooking.isChild = ageInput ? ageInput.value === 'child' : false;
   closeVisitClientForm();
   createTerminalVisitHold();
 }

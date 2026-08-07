@@ -789,22 +789,15 @@
         <div class="visit-filter-grid">
           <label class="instructor-filter-field">
             <span>Локация</span>
-            <select id="visit-location-select" onchange="handleVisitLocationChange()"></select>
+            <div class="visit-choice-pills" id="visit-location-options"></div>
           </label>
           <label class="instructor-filter-field">
             <span>Площадка</span>
-            <select id="visit-resource-select" onchange="handleVisitResourceChange()"></select>
+            <div class="visit-choice-pills" id="visit-resource-options"></div>
           </label>
           <label class="instructor-filter-field">
             <span>Людей</span>
-            <select id="visit-party-size" onchange="handleVisitPartySizeChange()">
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-              <option value="6">6</option>
-            </select>
+            <div class="visit-party-options" id="visit-party-size-options"></div>
           </label>
         </div>
 
@@ -917,10 +910,10 @@
         </label>
         <label class="rental-client-field">
           <span>Возраст</span>
-          <select id="visit-client-age">
-            <option value="adult">Взрослый</option>
-            <option value="child">Ребенок</option>
-          </select>
+          <div class="visit-age-options" id="visit-client-age-options">
+            <button class="visit-age-option active" type="button" data-visit-age="adult" onclick="setVisitClientAge('adult')">Взрослый</button>
+            <button class="visit-age-option" type="button" data-visit-age="child" onclick="setVisitClientAge('child')">Ребенок</button>
+          </div>
         </label>
         <p class="rental-client-error" id="visit-client-error"></p>
         <div class="rental-client-keyboard" id="visit-client-keyboard" aria-label="Экранная клавиатура"></div>
@@ -1150,7 +1143,7 @@
         <div class="system-version-info">
           <div class="system-version-info__row">
             <span>Версия</span>
-            <strong id="system-version-value">3.0.0</strong>
+            <strong id="system-version-value">3.1.1</strong>
           </div>
           <div class="system-version-info__row">
             <span>Терминал</span>

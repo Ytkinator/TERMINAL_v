@@ -2937,13 +2937,13 @@ body {
 /* === Visits Screen === */
 .visits-content {
   height: calc(100% - 112px);
-  display: flex;
-  flex-direction: column;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
   gap: 18px;
   padding: 28px 34px 40px;
   color: #fff;
   overflow: hidden;
-  -webkit-overflow-scrolling: touch;
 }
 
 .visits-content::-webkit-scrollbar { display: none; }
@@ -2952,9 +2952,9 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(0, 1.35fr) minmax(180px, 0.45fr);
   gap: 18px;
+  min-width: 0;
 }
 
-.visit-filter-grid select,
 .rental-client-field select {
   height: 64px;
   width: 100%;
@@ -2969,19 +2969,90 @@ body {
   outline: none;
 }
 
+.visit-choice-pills,
+.visit-party-options,
+.visit-age-options {
+  min-width: 0;
+  display: flex;
+  gap: 12px;
+}
+
+.visit-choice-pills {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.visit-choice-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.visit-choice-pill,
+.visit-party-option,
+.visit-age-option {
+  height: 64px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.visit-choice-pill {
+  flex: 0 0 auto;
+  min-width: 170px;
+  max-width: 280px;
+  padding: 0 22px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.visit-party-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.visit-party-option {
+  min-width: 0;
+  padding: 0;
+}
+
+.visit-age-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.visit-age-option {
+  min-width: 0;
+  padding: 0 18px;
+}
+
+.visit-choice-pill.active,
+.visit-party-option.active,
+.visit-age-option.active {
+  border-color: var(--accent-light);
+  background: var(--accent);
+}
+
 .visit-slots-list {
-  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   grid-auto-rows: 148px;
   align-content: start;
   gap: 16px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding-right: 4px;
 }
 
 .visit-slot-card {
-  height: 148px;
+  height: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -3010,6 +3081,7 @@ body {
 }
 
 .visit-slot-card__bottom {
+  min-width: 0;
   margin-top: auto;
   display: flex;
   align-items: center;
@@ -3018,15 +3090,21 @@ body {
 }
 
 .visit-slot-card__capacity {
+  min-width: 0;
+  flex: 0 1 auto;
   padding: 7px 11px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.12);
   color: rgba(255, 255, 255, 0.82);
   font-size: 14px;
   font-weight: 850;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .visit-slot-card__price {
+  flex: 0 0 auto;
   font-size: 24px;
   font-weight: 950;
 }
