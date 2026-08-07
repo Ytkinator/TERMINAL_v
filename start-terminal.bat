@@ -3,8 +3,8 @@ chcp 65001 >nul 2>&1
 title Terminal VG
 
 echo [1/7] Closing Chrome...
-taskkill /F /IM chrome.exe >nul 2>&1
-timeout /t 2 /nobreak >nul
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process -FilePath taskkill.exe -ArgumentList '/F','/T','/IM','chrome.exe' -WindowStyle Hidden -PassThru; if (-not $p.WaitForExit(5000)) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }" >nul 2>&1
+ping -n 3 127.0.0.1 >nul
 
 echo [2/7] Checking Python...
 python --version >nul 2>&1
@@ -15,7 +15,7 @@ if %errorlevel% neq 0 (
     powershell -Command "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile($env:PY_URL, $env:PY_EXE)"
     echo       Installing Python...
     "%TEMP%\python_install.exe" /quiet InstallAllUsers=1 PrependPath=1 Include_pip=1
-    timeout /t 10 /nobreak >nul
+    ping -n 11 127.0.0.1 >nul
     set "PATH=%PATH%;C:\Program Files\Python312;C:\Program Files\Python312\Scripts"
     echo       Done.
 )
@@ -32,11 +32,11 @@ REG ADD "HKCU\SOFTWARE\Policies\Google\Chrome" /v PrintPreviewUseSystemDefaultPr
 echo [5/7] Starting server (port 9999)...
 cd /d "%~dp0"
 start /b "" python server.py
-timeout /t 3 /nobreak >nul
+ping -n 4 127.0.0.1 >nul
 
 echo [6/7] Starting payment service (port 5050)...
 start /b "" python payment_service.py
-timeout /t 3 /nobreak >nul
+ping -n 4 127.0.0.1 >nul
 
 echo [7/7] Launching Chrome kiosk...
 start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" --user-data-dir="C:\TerminalVG" --kiosk --kiosk-printing --disable-session-crashed-bubble --noerrdialogs --disable-infobars --disable-features=TranslateUI --disable-background-mode --disable-pinch --overscroll-history-navigation=0 http://localhost:9999
