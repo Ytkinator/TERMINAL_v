@@ -406,7 +406,7 @@ body {
 
 /* === Main Content === */
 .main-content {
-  --main-action-card-height: clamp(176px, 18vh, 212px);
+  --main-action-card-height: clamp(176px, 20vh, 320px);
   flex: 1;
   overflow-y: auto;
   padding: 32px 32px 24px;
