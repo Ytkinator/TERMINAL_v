@@ -740,12 +740,20 @@
           <label class="instructor-filter-field">
             <span>Время</span>
             <div class="instructor-time-range">
-              <div class="instructor-time-row">
-                <span class="instructor-time-label">С</span>
+              <div class="instructor-time-field" data-instructor-time-field="start">
+                <span class="instructor-time-field-label">Время от</span>
+                <button class="instructor-time-select" id="instructor-start-time-trigger" type="button" onclick="toggleInstructorTimeDropdown(event, 'start')">
+                  <strong id="instructor-start-time-value">--:--</strong>
+                  <i data-lucide="chevron-down"></i>
+                </button>
                 <div class="instructor-time-options" id="instructor-start-time-options"></div>
               </div>
-              <div class="instructor-time-row">
-                <span class="instructor-time-label">До</span>
+              <div class="instructor-time-field" data-instructor-time-field="end">
+                <span class="instructor-time-field-label">Время до</span>
+                <button class="instructor-time-select" id="instructor-end-time-trigger" type="button" onclick="toggleInstructorTimeDropdown(event, 'end')">
+                  <strong id="instructor-end-time-value">--:--</strong>
+                  <i data-lucide="chevron-down"></i>
+                </button>
                 <div class="instructor-time-options" id="instructor-end-time-options"></div>
               </div>
             </div>
@@ -1143,7 +1151,7 @@
         <div class="system-version-info">
           <div class="system-version-info__row">
             <span>Версия</span>
-            <strong id="system-version-value">3.1.1</strong>
+            <strong id="system-version-value">3.1.2</strong>
           </div>
           <div class="system-version-info__row">
             <span>Терминал</span>

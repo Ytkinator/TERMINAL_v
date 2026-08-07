@@ -2657,7 +2657,7 @@ body {
 
 .instructor-filter-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  grid-template-columns: minmax(360px, 0.85fr) minmax(0, 1.55fr);
   gap: 18px;
   min-width: 0;
 }
@@ -2679,43 +2679,103 @@ body {
 
 .instructor-time-range {
   display: grid;
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
-.instructor-time-row {
+.instructor-time-field {
+  position: relative;
   min-width: 0;
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.instructor-time-label {
-  height: 56px;
+.instructor-time-field-label {
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 16px;
+  font-weight: 850;
+}
+
+.instructor-time-select {
+  height: 64px;
+  width: 100%;
   display: flex;
   align-items: center;
-  justify-content: center;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 17px;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 18px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+}
+
+.instructor-time-select strong {
+  font-size: 24px;
+  font-weight: 950;
+}
+
+.instructor-time-select svg {
+  width: 24px;
+  height: 24px;
+  color: rgba(255, 255, 255, 0.74);
+  transition: transform 0.16s ease;
+}
+
+.instructor-time-field.is-open .instructor-time-select {
+  border-color: var(--accent-light);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 0 3px rgba(212, 45, 90, 0.18);
+}
+
+.instructor-time-field.is-open .instructor-time-select svg {
+  transform: rotate(180deg);
+}
+
+.instructor-time-field.is-open {
+  z-index: 25;
+}
+
+.instructor-time-empty {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 18px;
   font-weight: 900;
 }
 
 .instructor-time-options {
-  min-width: 0;
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  display: none;
+  max-height: 300px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  background: #1a1b20;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.46);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.instructor-time-field.is-open .instructor-time-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .instructor-time-option {
-  flex: 0 0 auto;
-  min-width: 92px;
+  min-width: 0;
   height: 56px;
   border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 16px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.09);
   color: rgba(255, 255, 255, 0.88);
   font-family: 'Inter', sans-serif;
@@ -2729,15 +2789,6 @@ body {
   color: #fff;
 }
 
-.instructor-time-empty {
-  height: 56px;
-  display: flex;
-  align-items: center;
-  color: rgba(255, 255, 255, 0.52);
-  font-size: 18px;
-  font-weight: 800;
-}
-
 .instructor-filter-pills {
   display: flex;
   gap: 12px;
@@ -2746,17 +2797,35 @@ body {
 }
 
 .instructor-filter-pill {
+  flex: 0 0 auto;
   height: 64px;
-  min-width: 150px;
-  padding: 0 22px;
+  min-width: 0;
+  padding: 0 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.09);
   color: #fff;
   font-family: 'Inter', sans-serif;
-  font-size: 22px;
+  font-size: 21px;
   font-weight: 900;
   white-space: nowrap;
+}
+
+.instructor-filter-pill__icon {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.instructor-filter-pill span {
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .instructor-filter-pill.active {

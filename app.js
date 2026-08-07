@@ -7,7 +7,7 @@ var LOCAL_SERVER = (window.location && window.location.origin && window.location
   : 'http://localhost:9999';
 var API_URL = LOCAL_SERVER + '/api/categories'; // proxied via server.py (credentials injected server-side)
 var VERSION_URL = LOCAL_SERVER + '/api/version';
-var TERMINAL_SYSTEM_VERSION = '3.1.1';
+var TERMINAL_SYSTEM_VERSION = '3.1.2';
 var TERMINAL_SYSTEM_NAME = '';
 
 // Map API category_id → screen key
@@ -71,6 +71,7 @@ var selectedInstructorImplementId = null;
 var instructorSearchQuery = '';
 var pendingInstructorBooking = null;
 var instructorClientActiveField = 'name';
+var openInstructorTimeDropdownKind = '';
 var rentalClientActiveField = 'name';
 var RENTAL_CLIENT_NAME_KEYBOARD = [
   ['Й', 'Ц', 'У', 'К', 'Е', 'Н', 'Г', 'Ш', 'Щ', 'З', 'Х'],
@@ -319,7 +320,7 @@ function applySystemVersionInfo() {
   var terminalNameEl = document.getElementById('system-terminal-name');
 
   if (versionEl) {
-    versionEl.textContent = TERMINAL_SYSTEM_VERSION || '3.1.1';
+    versionEl.textContent = TERMINAL_SYSTEM_VERSION || '3.1.2';
   }
 
   if (terminalNameEl) {
@@ -1571,7 +1572,9 @@ function renderInstructorFilters() {
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'instructor-filter-pill' + (parseInt(implement.id) === parseInt(selectedInstructorImplementId || 0) ? ' active' : '');
-      btn.textContent = implement.name || 'Снаряд';
+      btn.innerHTML =
+        '<i data-lucide="' + getInstructorImplementIconName(implement) + '" class="instructor-filter-pill__icon"></i>' +
+        '<span>' + escapeHtml(implement.name || 'Снаряд') + '</span>';
       btn.onclick = function() {
         selectedInstructorImplementId = implement.id;
         loadTerminalInstructors();
@@ -1579,10 +1582,19 @@ function renderInstructorFilters() {
       implementsEl.appendChild(btn);
     });
   }
+
+  if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+  }
 }
 
 function renderInstructorTimeOptions(containerEl, timeSlots, selectedValue, kind) {
   if (!containerEl) return;
+
+  var valueEl = document.getElementById(kind === 'end' ? 'instructor-end-time-value' : 'instructor-start-time-value');
+  var fieldEl = containerEl.closest('.instructor-time-field');
+  if (valueEl) valueEl.textContent = selectedValue || '--:--';
+  if (fieldEl) fieldEl.classList.toggle('is-open', openInstructorTimeDropdownKind === kind);
 
   containerEl.innerHTML = '';
   if (timeSlots.length === 0) {
@@ -1599,17 +1611,40 @@ function renderInstructorTimeOptions(containerEl, timeSlots, selectedValue, kind
     btn.className = 'instructor-time-option' + (time === selectedValue ? ' active' : '');
     btn.textContent = time;
     btn.onclick = function() {
+      openInstructorTimeDropdownKind = '';
       setInstructorTimeRange(kind, time);
     };
     containerEl.appendChild(btn);
   });
+}
 
-  var activeBtn = containerEl.querySelector('.instructor-time-option.active');
-  if (activeBtn) {
-    requestAnimationFrame(function() {
-      activeBtn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    });
+function toggleInstructorTimeDropdown(event, kind) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
   }
+  openInstructorTimeDropdownKind = openInstructorTimeDropdownKind === kind ? '' : kind;
+  renderInstructorFilters();
+}
+
+function closeInstructorTimeDropdown() {
+  if (!openInstructorTimeDropdownKind) return;
+  openInstructorTimeDropdownKind = '';
+  renderInstructorFilters();
+}
+
+function getInstructorImplementIconName(implement) {
+  var name = String(implement && implement.name ? implement.name : '').toLowerCase();
+  if (name.indexOf('сноуб') !== -1 || name.indexOf('snowboard') !== -1) {
+    return 'mountain';
+  }
+  if (name.indexOf('фрист') !== -1 || name.indexOf('freestyle') !== -1) {
+    return 'sparkles';
+  }
+  if (name.indexOf('лыж') !== -1 || name.indexOf('ski') !== -1) {
+    return 'snowflake';
+  }
+  return 'circle';
 }
 
 function setInstructorTimeRange(kind, time) {
@@ -3203,6 +3238,10 @@ function showAlert(message) {
 
 // === Tab switching ===
 document.addEventListener('click', (e) => {
+  if (!e.target.closest('.instructor-time-field')) {
+    closeInstructorTimeDropdown();
+  }
+
   const tab = e.target.closest('.tab');
   if (!tab) return;
   const tabs = tab.parentElement;
