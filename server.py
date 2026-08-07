@@ -52,7 +52,7 @@ def rewrite_backend_asset_url(value):
     if not isinstance(value, str):
         return value
 
-    if value.startswith('/storage/'):
+    if value.startswith('/storage/') or value.startswith('/timeline/'):
         return BACKEND_API_BASE_URL + value
 
     parsed = urllib.parse.urlparse(value)
@@ -62,7 +62,7 @@ def rewrite_backend_asset_url(value):
     if parsed.hostname not in ('localhost', '127.0.0.1', '0.0.0.0'):
         return value
 
-    if not parsed.path.startswith('/storage/'):
+    if not (parsed.path.startswith('/storage/') or parsed.path.startswith('/timeline/')):
         return value
 
     rewritten = BACKEND_API_BASE_URL + parsed.path
@@ -92,7 +92,7 @@ def cache_backend_asset_url(value):
         return source_url
 
     parsed = urllib.parse.urlparse(source_url)
-    if parsed.scheme not in ('http', 'https') or not parsed.path.startswith('/storage/'):
+    if parsed.scheme not in ('http', 'https') or not (parsed.path.startswith('/storage/') or parsed.path.startswith('/timeline/')):
         return source_url
 
     local_path, local_url = cached_asset_path_for_url(source_url)

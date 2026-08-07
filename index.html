@@ -741,15 +741,14 @@
             <span>Время</span>
             <div class="instructor-time-range">
               <div class="instructor-time-field" data-instructor-time-field="start">
-                <span class="instructor-time-field-label">Время от</span>
                 <button class="instructor-time-select" id="instructor-start-time-trigger" type="button" onclick="toggleInstructorTimeDropdown(event, 'start')">
                   <strong id="instructor-start-time-value">--:--</strong>
                   <i data-lucide="chevron-down"></i>
                 </button>
                 <div class="instructor-time-options" id="instructor-start-time-options"></div>
               </div>
+              <span class="instructor-time-separator" aria-hidden="true">-</span>
               <div class="instructor-time-field" data-instructor-time-field="end">
-                <span class="instructor-time-field-label">Время до</span>
                 <button class="instructor-time-select" id="instructor-end-time-trigger" type="button" onclick="toggleInstructorTimeDropdown(event, 'end')">
                   <strong id="instructor-end-time-value">--:--</strong>
                   <i data-lucide="chevron-down"></i>
@@ -763,11 +762,6 @@
             <div class="instructor-filter-pills" id="instructor-implement-tabs"></div>
           </label>
         </div>
-
-        <label class="instructor-search">
-          <span>Тренеры</span>
-          <input type="text" autocomplete="off" placeholder="Поиск" oninput="handleInstructorSearchInput(this)">
-        </label>
 
         <div class="instructors-list" id="instructors-list"></div>
         <p class="instructors-state" id="instructors-state"></p>
@@ -793,21 +787,6 @@
         </div>
 
         <div class="instructor-date-tabs" id="visits-date-tabs"></div>
-
-        <div class="visit-filter-grid">
-          <label class="instructor-filter-field">
-            <span>Локация</span>
-            <div class="visit-choice-pills" id="visit-location-options"></div>
-          </label>
-          <label class="instructor-filter-field">
-            <span>Площадка</span>
-            <div class="visit-choice-pills" id="visit-resource-options"></div>
-          </label>
-          <label class="instructor-filter-field">
-            <span>Людей</span>
-            <div class="visit-party-options" id="visit-party-size-options"></div>
-          </label>
-        </div>
 
         <div class="visit-slots-list" id="visit-slots-list"></div>
         <p class="groups-state" id="visits-state"></p>

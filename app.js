@@ -42,8 +42,6 @@ var loadedVisitLocations = [];
 var loadedVisitSlots = [];
 var selectedVisitDate = '';
 var selectedVisitLocationId = null;
-var selectedVisitResourceId = null;
-var selectedVisitPartySize = 1;
 var pendingVisitBooking = null;
 var visitClientActiveField = 'name';
 var TERMINAL_INSTRUCTOR_SERVICE_ENABLED = false;
@@ -68,7 +66,6 @@ var selectedInstructorDate = '';
 var selectedInstructorStartTime = '';
 var selectedInstructorEndTime = '';
 var selectedInstructorImplementId = null;
-var instructorSearchQuery = '';
 var pendingInstructorBooking = null;
 var instructorClientActiveField = 'name';
 var openInstructorTimeDropdownKind = '';
@@ -568,7 +565,7 @@ function applyVisitSectionSettings() {
   }
 
   if (screenTitle) {
-    screenTitle.textContent = TERMINAL_VISIT_SECTION_TITLE || 'Посещения';
+    screenTitle.textContent = selectedVisitLocationName() || TERMINAL_VISIT_SECTION_TITLE || 'Посещения';
   }
 
   renderVisitLocationActions(actions);
@@ -696,7 +693,6 @@ function handleVisitSectionClick(locationId) {
 
   if (locationId) {
     selectedVisitLocationId = parseInt(locationId);
-    selectedVisitResourceId = null;
   }
 
   navigateTo('visits');
@@ -1188,7 +1184,8 @@ function renderGroups(errorMessage) {
     var imageStyle = group.image_url ? ' style="background-image:url(\'' + escapeAttr(group.image_url) + '\')"' : '';
     var seatsText = group.free_seats === null ? 'Места есть' : 'Свободно: ' + group.free_seats;
     var description = group.short_description || group.online_description || '';
-    var meta = [group.trainer_name, group.implement_name].filter(Boolean).join(' · ');
+    var trainerName = group.trainer_name || '';
+    var implementSubtypeName = group.implement_subtype_name || group.subtype_name || group.subtype || '';
     var priceText = parseInt(group.price || 0) > 0 ? formatPrice(parseInt(group.price || 0)) + ' ₽' : 'Бесплатно';
 
     card.innerHTML =
@@ -1196,7 +1193,8 @@ function renderGroups(errorMessage) {
       '<div class="group-card__body">' +
         '<div class="group-card__time">' + escapeHtml(group.start_time || '') + '–' + escapeHtml(group.fin_time || '') + '</div>' +
         '<div class="group-card__title">' + escapeHtml(group.name || group.template_name || 'Групповое занятие') + '</div>' +
-        (meta ? '<div class="group-card__meta">' + escapeHtml(meta) + '</div>' : '') +
+        (trainerName ? '<div class="group-card__trainer">' + escapeHtml(trainerName) + '</div>' : '') +
+        (implementSubtypeName ? '<div class="group-card__implement">' + escapeHtml(implementSubtypeName) + '</div>' : '') +
         (description ? '<div class="group-card__description">' + escapeHtml(description) + '</div>' : '') +
         '<div class="group-card__bottom">' +
           '<span class="group-card__price">' + priceText + '</span>' +
@@ -1573,7 +1571,7 @@ function renderInstructorFilters() {
       btn.type = 'button';
       btn.className = 'instructor-filter-pill' + (parseInt(implement.id) === parseInt(selectedInstructorImplementId || 0) ? ' active' : '');
       btn.innerHTML =
-        '<i data-lucide="' + getInstructorImplementIconName(implement) + '" class="instructor-filter-pill__icon"></i>' +
+        renderInstructorImplementIcon(implement) +
         '<span>' + escapeHtml(implement.name || 'Снаряд') + '</span>';
       btn.onclick = function() {
         selectedInstructorImplementId = implement.id;
@@ -1631,6 +1629,37 @@ function closeInstructorTimeDropdown() {
   if (!openInstructorTimeDropdownKind) return;
   openInstructorTimeDropdownKind = '';
   renderInstructorFilters();
+}
+
+function renderInstructorImplementIcon(implement) {
+  var iconUrl = getInstructorImplementIconUrl(implement);
+  if (iconUrl) {
+    return '<img class="instructor-filter-pill__icon instructor-filter-pill__icon--image" src="' + escapeAttr(iconUrl) + '" alt="">';
+  }
+
+  return '<i data-lucide="' + getInstructorImplementIconName(implement) + '" class="instructor-filter-pill__icon"></i>';
+}
+
+function getInstructorImplementIconUrl(implement) {
+  var directUrl = instructorStringValue(
+    implement && (implement.icon_url || implement.image_url || implement.photo_url || implement.icon)
+  );
+  if (directUrl) return directUrl;
+
+  var settings = Array.isArray(implement && implement.settings) ? implement.settings : [];
+  for (var i = 0; i < settings.length; i++) {
+    var item = settings[i];
+    if (!item || typeof item !== 'object') continue;
+    if (item.__eskimos_setting !== 'implement_icon' && item.__icon !== true) continue;
+    var settingsUrl = instructorStringValue(item.url || item.icon_url || item.image_url);
+    if (settingsUrl) return settingsUrl;
+  }
+
+  return '';
+}
+
+function instructorStringValue(value) {
+  return value === null || value === undefined ? '' : String(value);
 }
 
 function getInstructorImplementIconName(implement) {
@@ -1701,11 +1730,6 @@ function instructorTimeToMinutes(value) {
   return (parseInt(parts[0] || '0') * 60) + parseInt(parts[1] || '0');
 }
 
-function handleInstructorSearchInput(input) {
-  instructorSearchQuery = input ? input.value.trim().toLowerCase() : '';
-  renderInstructors();
-}
-
 function renderInstructors(errorMessage) {
   var listEl = document.getElementById('instructors-list');
   var stateEl = document.getElementById('instructors-state');
@@ -1718,10 +1742,7 @@ function renderInstructors(errorMessage) {
     return;
   }
 
-  var visible = loadedInstructors.filter(function(trainer) {
-    if (!instructorSearchQuery) return true;
-    return String(trainer.name || '').toLowerCase().indexOf(instructorSearchQuery) !== -1;
-  });
+  var visible = loadedInstructors.slice();
 
   if (visible.length === 0) {
     stateEl.textContent = 'Нет свободных инструкторов на выбранное время';
@@ -1730,26 +1751,17 @@ function renderInstructors(errorMessage) {
 
   stateEl.textContent = '';
   visible.forEach(function(trainer) {
-    var slot = trainer.selected_slot || (Array.isArray(trainer.available_slots) ? trainer.available_slots[0] : null) || {};
     var card = document.createElement('button');
     card.type = 'button';
     card.className = 'instructor-booking-card';
     card.onclick = function() { openInstructorClientForm(trainer); };
 
     var imageStyle = trainer.photo_url ? ' style="background-image:url(\'' + escapeAttr(trainer.photo_url) + '\')"' : '';
-    var category = trainer.category_title || 'Инструктор';
-    var price = parseInt(slot.price || 0);
-    var time = (slot.start_time || selectedInstructorStartTime || '') + '–' + (slot.end_time || selectedInstructorEndTime || '');
 
     card.innerHTML =
       '<div class="instructor-booking-card__photo"' + imageStyle + '></div>' +
       '<div class="instructor-booking-card__body">' +
         '<div class="instructor-booking-card__name">' + escapeHtml(trainer.name || 'Инструктор') + '</div>' +
-        '<div class="instructor-booking-card__meta">' + escapeHtml(category) + '</div>' +
-        '<div class="instructor-booking-card__bottom">' +
-          '<span>' + escapeHtml(time) + '</span>' +
-          '<strong>' + formatPrice(price) + ' ₽</strong>' +
-        '</div>' +
       '</div>';
 
     listEl.appendChild(card);
@@ -2163,62 +2175,10 @@ function renderVisitDates() {
 }
 
 function renderVisitFilters() {
-  var locationEl = document.getElementById('visit-location-options');
-  var resourceEl = document.getElementById('visit-resource-options');
-  var partyEl = document.getElementById('visit-party-size-options');
+  var screenTitle = document.getElementById('visits-screen-title');
 
-  if (locationEl) {
-    locationEl.innerHTML = '';
-    loadedVisitLocations.forEach(function(location) {
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'visit-choice-pill' + (parseInt(location.id) === parseInt(selectedVisitLocationId || 0) ? ' active' : '');
-      btn.textContent = location.name || 'Локация';
-      btn.onclick = function() {
-        handleVisitLocationChange(location.id);
-      };
-      locationEl.appendChild(btn);
-    });
-  }
-
-  var location = selectedVisitLocation();
-  var resources = location && Array.isArray(location.resources) ? location.resources : [];
-
-  if (resourceEl) {
-    resourceEl.innerHTML = '';
-    var allButton = document.createElement('button');
-    allButton.type = 'button';
-    allButton.className = 'visit-choice-pill' + (!selectedVisitResourceId ? ' active' : '');
-    allButton.textContent = resources.length > 0 ? 'Все площадки' : 'Не требуется';
-    allButton.onclick = function() {
-      handleVisitResourceChange(null);
-    };
-    resourceEl.appendChild(allButton);
-
-    resources.forEach(function(resource) {
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'visit-choice-pill' + (parseInt(resource.id) === parseInt(selectedVisitResourceId || 0) ? ' active' : '');
-      btn.textContent = resource.name || 'Площадка';
-      btn.onclick = function() {
-        handleVisitResourceChange(resource.id);
-      };
-      resourceEl.appendChild(btn);
-    });
-  }
-
-  if (partyEl) {
-    partyEl.innerHTML = '';
-    [1, 2, 3, 4, 5, 6].forEach(function(size) {
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'visit-party-option' + (parseInt(selectedVisitPartySize || 1) === size ? ' active' : '');
-      btn.textContent = String(size);
-      btn.onclick = function() {
-        handleVisitPartySizeChange(size);
-      };
-      partyEl.appendChild(btn);
-    });
+  if (screenTitle) {
+    screenTitle.textContent = selectedVisitLocationName() || TERMINAL_VISIT_SECTION_TITLE || 'Посещения';
   }
 }
 
@@ -2226,25 +2186,6 @@ function selectedVisitLocation() {
   return loadedVisitLocations.find(function(location) {
     return parseInt(location.id) === parseInt(selectedVisitLocationId || 0);
   }) || null;
-}
-
-function handleVisitLocationChange(locationId) {
-  selectedVisitLocationId = locationId ? parseInt(locationId) : null;
-  selectedVisitResourceId = null;
-  renderVisitFilters();
-  loadVisitAvailability();
-}
-
-function handleVisitResourceChange(resourceId) {
-  selectedVisitResourceId = resourceId ? parseInt(resourceId) : null;
-  renderVisitFilters();
-  loadVisitAvailability();
-}
-
-function handleVisitPartySizeChange(size) {
-  selectedVisitPartySize = size ? parseInt(size) : 1;
-  renderVisitFilters();
-  loadVisitAvailability();
 }
 
 function loadVisitAvailability() {
@@ -2267,11 +2208,8 @@ function loadVisitAvailability() {
   var payload = {
     date: selectedVisitDate,
     location_id: selectedVisitLocationId,
-    party_size: selectedVisitPartySize || 1
+    party_size: 1
   };
-  if (selectedVisitResourceId) {
-    payload.location_resource_id = selectedVisitResourceId;
-  }
 
   var xhr = new XMLHttpRequest();
   xhr.open('POST', LOCAL_SERVER + '/api/visits/availability', true);
@@ -2321,24 +2259,56 @@ function renderVisitSlots(errorMessage) {
   }
 
   stateEl.textContent = '';
-  loadedVisitSlots.forEach(function(slot) {
-    var card = document.createElement('button');
-    card.type = 'button';
-    card.className = 'visit-slot-card';
-    card.onclick = function() { openVisitClientForm(slot); };
+  groupVisitSlotsByResource(loadedVisitSlots).forEach(function(group) {
+    var groupEl = document.createElement('section');
+    groupEl.className = 'visit-slots-group';
 
-    var resourceName = slot.resource_name || selectedVisitLocationName();
-    var capacity = slot.available_capacity == null ? 'Места есть' : 'Свободно: ' + slot.available_capacity;
-    card.innerHTML =
-      '<div class="visit-slot-card__time">' + escapeHtml(slot.start_time || '') + '–' + escapeHtml(slot.fin_time || '') + '</div>' +
-      '<div class="visit-slot-card__title">' + escapeHtml(resourceName || '') + '</div>' +
-      '<div class="visit-slot-card__bottom">' +
-        '<span class="visit-slot-card__capacity">' + escapeHtml(capacity) + '</span>' +
-        '<span class="visit-slot-card__price">' + formatPrice(parseInt(slot.total || slot.price || 0)) + ' ₽</span>' +
-      '</div>';
+    var title = document.createElement('h3');
+    title.className = 'visit-slots-group__title';
+    title.textContent = group.name;
+    groupEl.appendChild(title);
 
-    listEl.appendChild(card);
+    var grid = document.createElement('div');
+    grid.className = 'visit-slots-grid';
+    group.slots.forEach(function(slot) {
+      var card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'visit-slot-card';
+      card.onclick = function() { openVisitClientForm(slot); };
+
+      var capacity = slot.available_capacity == null ? 'Места есть' : 'Свободно: ' + slot.available_capacity;
+      card.innerHTML =
+        '<div class="visit-slot-card__time">' + escapeHtml(slot.start_time || '') + '–' + escapeHtml(slot.fin_time || '') + '</div>' +
+        '<div class="visit-slot-card__bottom">' +
+          '<span class="visit-slot-card__capacity">' + escapeHtml(capacity) + '</span>' +
+          '<span class="visit-slot-card__price">' + formatPrice(parseInt(slot.total || slot.price || 0)) + ' ₽</span>' +
+        '</div>';
+
+      grid.appendChild(card);
+    });
+
+    groupEl.appendChild(grid);
+    listEl.appendChild(groupEl);
   });
+}
+
+function groupVisitSlotsByResource(slots) {
+  var groups = [];
+  var byKey = {};
+
+  slots.forEach(function(slot) {
+    var key = slot.location_resource_id ? 'resource-' + slot.location_resource_id : 'location';
+    if (!byKey[key]) {
+      byKey[key] = {
+        name: slot.resource_name || selectedVisitLocationName() || 'Без площадки',
+        slots: []
+      };
+      groups.push(byKey[key]);
+    }
+    byKey[key].slots.push(slot);
+  });
+
+  return groups;
 }
 
 function selectedVisitLocationName() {
@@ -2362,7 +2332,8 @@ function openVisitClientForm(slot) {
   var errorEl = document.getElementById('visit-client-error');
 
   if (summary) {
-    summary.textContent = selectedVisitLocationName() + ' · ' + formatGroupDate(selectedVisitDate) + ' · ' +
+    var resourceName = slot.resource_name ? ' · ' + slot.resource_name : '';
+    summary.textContent = selectedVisitLocationName() + resourceName + ' · ' + formatGroupDate(selectedVisitDate) + ' · ' +
       (slot.start_time || '') + '–' + (slot.fin_time || '') + ' · ' +
       formatPrice(parseInt(slot.total || slot.price || 0)) + ' ₽';
   }
@@ -2569,7 +2540,7 @@ function createTerminalVisitHold() {
     fin: slot.fin,
     location_id: slot.location_id,
     location_resource_id: slot.location_resource_id,
-    party_size: selectedVisitPartySize || 1,
+    party_size: 1,
     visit_tariff_id: slot.tariff_id,
     client_name: pendingVisitBooking.clientName,
     client_phone: pendingVisitBooking.clientPhone,
