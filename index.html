@@ -311,10 +311,10 @@
           <i data-lucide="phone"></i>
           <span>+7 (925) 925-59-59</span>
         </div>
-        <div class="bottom-right">
+        <button class="bottom-right bottom-system-info" id="terminal-system-info-btn" type="button" onclick="openSystemVersionModal()">
           <img src="images/eskimos_logo_trans.png" alt="Eskimos" class="bottom-eskimos-logo">
           <span class="bottom-eskimos-text">Система автоматизации Eskimos.ski</span>
-        </div>
+        </button>
       </footer>
     </div>
 
@@ -1129,6 +1129,28 @@
             <i data-lucide="qr-code" class="terminal-rental-action-icon"></i>
             <span>Оплатить заказ</span>
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Версия терминала -->
+    <div class="rental-client-modal" id="system-version-modal">
+      <div class="rental-client-card system-version-card">
+        <div class="rental-client-header">
+          <h2>Система терминала</h2>
+          <button class="rental-client-close" type="button" onclick="closeSystemVersionModal()">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="system-version-info">
+          <div class="system-version-info__row">
+            <span>Версия</span>
+            <strong id="system-version-value">3.0.0</strong>
+          </div>
+          <div class="system-version-info__row">
+            <span>Терминал</span>
+            <strong id="system-terminal-name">—</strong>
+          </div>
         </div>
       </div>
     </div>

@@ -83,6 +83,10 @@ echo  ========================================
 echo    Update completed.
 echo  ========================================
 echo.
+if exist "%~dp0VERSION" (
+  set /p TERMINAL_VERSION=<"%~dp0VERSION"
+  echo  Version: %TERMINAL_VERSION%
+)
 echo  Restart start-terminal.bat to run the new version.
 
 :cleanup

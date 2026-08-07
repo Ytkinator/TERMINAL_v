@@ -2,8 +2,13 @@
 lucide.createIcons();
 
 // === API Configuration ===
-var LOCAL_SERVER = 'http://localhost:9999';
+var LOCAL_SERVER = (window.location && window.location.origin && window.location.origin !== 'null')
+  ? window.location.origin
+  : 'http://localhost:9999';
 var API_URL = LOCAL_SERVER + '/api/categories'; // proxied via server.py (credentials injected server-side)
+var VERSION_URL = LOCAL_SERVER + '/api/version';
+var TERMINAL_SYSTEM_VERSION = '3.0.0';
+var TERMINAL_SYSTEM_NAME = '';
 
 // Map API category_id → screen key
 var CATEGORY_SCREEN_MAP = {
@@ -307,6 +312,59 @@ function isTariffAvailableForToday(tariff, todayType) {
 
 function isTicketScreen(screenName) {
   return CATEGORY_SCREEN_SEQUENCE.indexOf(screenName) !== -1;
+}
+
+function applySystemVersionInfo() {
+  var versionEl = document.getElementById('system-version-value');
+  var terminalNameEl = document.getElementById('system-terminal-name');
+
+  if (versionEl) {
+    versionEl.textContent = TERMINAL_SYSTEM_VERSION || '3.0.0';
+  }
+
+  if (terminalNameEl) {
+    terminalNameEl.textContent = TERMINAL_SYSTEM_NAME || '—';
+  }
+}
+
+function loadSystemVersionInfo() {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', VERSION_URL, true);
+  xhr.timeout = 5000;
+  xhr.onload = function() {
+    if (xhr.status < 200 || xhr.status >= 300) {
+      applySystemVersionInfo();
+      return;
+    }
+
+    try {
+      var data = JSON.parse(xhr.responseText);
+      if (typeof data.version === 'string' && data.version.trim()) {
+        TERMINAL_SYSTEM_VERSION = data.version.trim();
+      }
+      if (typeof data.terminal_name === 'string' && data.terminal_name.trim()) {
+        TERMINAL_SYSTEM_NAME = data.terminal_name.trim();
+      }
+    } catch (e) {
+      console.warn('[VERSION] Parse error:', e);
+    }
+
+    applySystemVersionInfo();
+  };
+  xhr.onerror = applySystemVersionInfo;
+  xhr.ontimeout = applySystemVersionInfo;
+  xhr.send();
+}
+
+function openSystemVersionModal() {
+  applySystemVersionInfo();
+  var modal = document.getElementById('system-version-modal');
+  if (modal) modal.classList.add('active');
+}
+
+function closeSystemVersionModal() {
+  var modal = document.getElementById('system-version-modal');
+  if (modal) modal.classList.remove('active');
 }
 
 function setTerminalConfigState(status, title, details) {
@@ -2940,6 +2998,7 @@ function populateScreenBanners() {
   initTicketCarousels();
 }
 // Load categories on startup (banners populated later after all code is defined)
+loadSystemVersionInfo();
 loadCategories();
 
 // Schedule daily reload at 23:55 (update ticket types for next day)

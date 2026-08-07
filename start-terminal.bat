@@ -43,6 +43,10 @@ start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" --user-data-dir
 
 echo.
 echo === Terminal started ===
+if exist "%~dp0VERSION" (
+    set /p TERMINAL_VERSION=<"%~dp0VERSION"
+    echo Version:        %TERMINAL_VERSION%
+)
 echo Server:         localhost:9999 (print + API proxy)
 echo Payment service: localhost:5050 (PAX S300 via DualConnector)
 echo Exit kiosk: Alt+F4

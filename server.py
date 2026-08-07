@@ -131,6 +131,17 @@ PRINTER = None
 PRINTER_NAME = None
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PRINTS_DIR = os.path.join(BASE_DIR, 'prints')
+VERSION_FILE = os.path.join(BASE_DIR, 'VERSION')
+
+
+def read_system_version():
+    """Read terminal system version shipped with the current release."""
+    try:
+        with open(VERSION_FILE, 'r', encoding='utf-8') as f:
+            version = f.read().strip()
+        return version or '3.0.0'
+    except Exception:
+        return '3.0.0'
 
 def init_printer():
     """Detect default printer on Windows."""
@@ -628,6 +639,9 @@ class TerminalHandler(http.server.SimpleHTTPRequestHandler):
             print(f"[{log_prefix}] Error: {e}")
 
     def do_GET(self):
+        if self.path == '/api/version':
+            self._handle_version()
+            return
         if self.path == '/printer-status':
             self._handle_status()
             return
@@ -637,6 +651,19 @@ class TerminalHandler(http.server.SimpleHTTPRequestHandler):
         if 'If-None-Match' in self.headers:
             del self.headers['If-None-Match']
         super().do_GET()
+
+    def _handle_version(self):
+        """Return local terminal version and non-secret runtime diagnostics."""
+        status = {
+            'version': read_system_version(),
+            'terminal_name': TERMINAL_NAME,
+            'terminal_id': TERMINAL_ID,
+            'backend_api_base_url': BACKEND_API_BASE_URL,
+        }
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps(status, ensure_ascii=False).encode())
 
     def _handle_status(self):
         """Check if printer is available."""
