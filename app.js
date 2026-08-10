@@ -1554,6 +1554,8 @@ function renderInstructorFilters() {
       btn.innerHTML = '<span>' + escapeHtml(String(item.weekday || '').toUpperCase()) + '</span><strong>' + escapeHtml(item.day || '') + '</strong>';
       btn.onclick = function() {
         selectedInstructorDate = item.date;
+        selectedInstructorStartTime = '';
+        selectedInstructorEndTime = '';
         loadTerminalInstructors();
       };
       datesEl.appendChild(btn);
@@ -1604,11 +1606,14 @@ function renderInstructorTimeOptions(containerEl, timeSlots, selectedValue, kind
   }
 
   timeSlots.forEach(function(time) {
+    var isDisabled = isInstructorPastTimeForSelectedDate(time);
     var btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'instructor-time-option' + (time === selectedValue ? ' active' : '');
+    btn.className = 'instructor-time-option' + (time === selectedValue ? ' active' : '') + (isDisabled ? ' disabled' : '');
+    btn.disabled = isDisabled;
     btn.textContent = time;
     btn.onclick = function() {
+      if (isDisabled) return;
       openInstructorTimeDropdownKind = '';
       setInstructorTimeRange(kind, time);
     };
@@ -1693,10 +1698,10 @@ function normalizeInstructorTimeRange(changedKind) {
   if (slots.length === 0) return;
 
   if (!selectedInstructorStartTime || slots.indexOf(selectedInstructorStartTime) === -1) {
-    selectedInstructorStartTime = slots[0];
+    selectedInstructorStartTime = getFirstSelectableInstructorStartTime(slots) || slots[0];
   }
   if (!selectedInstructorEndTime || slots.indexOf(selectedInstructorEndTime) === -1) {
-    selectedInstructorEndTime = slots[Math.min(2, slots.length - 1)] || selectedInstructorStartTime;
+    selectedInstructorEndTime = getPreferredInstructorEndTime(selectedInstructorStartTime, slots) || selectedInstructorStartTime;
   }
 
   if (compareInstructorTimes(selectedInstructorEndTime, selectedInstructorStartTime) > 0) {
@@ -1706,14 +1711,14 @@ function normalizeInstructorTimeRange(changedKind) {
   var startIndex = slots.indexOf(selectedInstructorStartTime);
   var endIndex = slots.indexOf(selectedInstructorEndTime);
   if (changedKind === 'end' && endIndex > 0) {
-    selectedInstructorStartTime = slots[Math.max(0, endIndex - 2)];
+    selectedInstructorStartTime = getPreferredInstructorStartTime(selectedInstructorEndTime, slots) || slots[Math.max(0, endIndex - 1)];
     if (compareInstructorTimes(selectedInstructorEndTime, selectedInstructorStartTime) <= 0) {
       selectedInstructorStartTime = slots[Math.max(0, endIndex - 1)];
     }
     return;
   }
 
-  selectedInstructorEndTime = slots[startIndex + 2] || slots[startIndex + 1] || selectedInstructorEndTime;
+  selectedInstructorEndTime = getPreferredInstructorEndTime(selectedInstructorStartTime, slots) || selectedInstructorEndTime;
 }
 
 function handleInstructorTimeChange() {
@@ -1728,6 +1733,63 @@ function compareInstructorTimes(left, right) {
 function instructorTimeToMinutes(value) {
   var parts = String(value || '').split(':');
   return (parseInt(parts[0] || '0') * 60) + parseInt(parts[1] || '0');
+}
+
+function getFirstSelectableInstructorStartTime(slots) {
+  for (var i = 0; i < slots.length; i++) {
+    if (!isInstructorPastTimeForSelectedDate(slots[i]) && getPreferredInstructorEndTime(slots[i], slots)) {
+      return slots[i];
+    }
+  }
+
+  return '';
+}
+
+function getPreferredInstructorEndTime(startTime, slots) {
+  var oneHourEnd = getInstructorTimeAfterMinutes(startTime, 60, slots);
+  if (oneHourEnd) return oneHourEnd;
+
+  var index = slots.indexOf(startTime);
+  return index === -1 ? '' : (slots[index + 1] || '');
+}
+
+function getPreferredInstructorStartTime(endTime, slots) {
+  var oneHourStart = getInstructorTimeAfterMinutes(endTime, -60, slots);
+  if (oneHourStart && !isInstructorPastTimeForSelectedDate(oneHourStart)) return oneHourStart;
+
+  var index = slots.indexOf(endTime);
+  for (var i = index - 1; i >= 0; i--) {
+    if (!isInstructorPastTimeForSelectedDate(slots[i])) {
+      return slots[i];
+    }
+  }
+
+  return '';
+}
+
+function getInstructorTimeAfterMinutes(time, minutes, slots) {
+  var total = instructorTimeToMinutes(time) + minutes;
+  if (total < 0 || total >= 24 * 60) return '';
+
+  var hours = Math.floor(total / 60);
+  var mins = total % 60;
+  var value = String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0');
+  return slots.indexOf(value) === -1 ? '' : value;
+}
+
+function isInstructorPastTimeForSelectedDate(time) {
+  if (!selectedInstructorDate || selectedInstructorDate !== getTodayDateString()) {
+    return false;
+  }
+
+  var now = new Date();
+  var currentMinutes = (now.getHours() * 60) + now.getMinutes();
+  return instructorTimeToMinutes(time) <= currentMinutes;
+}
+
+function getTodayDateString() {
+  var today = new Date();
+  return today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
 }
 
 function renderInstructors(errorMessage) {

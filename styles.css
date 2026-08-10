@@ -2813,6 +2813,14 @@ body {
   color: #fff;
 }
 
+.instructor-time-option.disabled,
+.instructor-time-option:disabled {
+  opacity: 0.36;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.44);
+}
+
 .instructor-filter-pills {
   display: flex;
   gap: 12px;
