@@ -278,6 +278,8 @@ class TerminalHandler(http.server.SimpleHTTPRequestHandler):
             self._handle_api_proxy()
         elif self.path == '/api/tickets/create':
             self._handle_tickets_proxy()
+        elif self.path == '/api/skipass-topup/create':
+            self._proxy_group_request('/api/v1/tickets/terminal/skipass-topup/create', log_prefix='SKIPASS TOPUP')
         elif self.path == '/api/tickets/email':
             self._handle_email_proxy()
         elif self.path == '/api/rental/orders':

@@ -86,6 +86,348 @@ var RENTAL_CLIENT_PHONE_KEYBOARD = [
 var TERMINAL_CAROUSEL_ENABLED = false;
 var TERMINAL_CAROUSEL_IMAGES = [];
 var TERMINAL_SPLASH_IMAGE = '';
+var terminalCatalogConfig = null;
+var activeTerminalCatalogButton = null;
+var activeTerminalCatalogSection = 0;
+var terminalCatalogReturnScreen = 'main';
+var terminalCatalogCart = {};
+var selectedSkipassCardId = '';
+var selectedSkipassTariff = null;
+var activeTerminalTopupSection = 0;
+var legacySkipassTopupButton = null;
+var terminalCatalogCheckoutCheckInFlight = false;
+
+function verifyTerminalCatalogCheckout(buttonCode, type, items, onValid) {
+  if (terminalCatalogCheckoutCheckInFlight) return;
+  terminalCatalogCheckoutCheckInFlight = true;
+  fetch(LOCAL_SERVER + '/api/categories', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
+  })
+    .then(function(response) {
+      if (!response.ok) throw new Error('Не удалось проверить каталог перед оплатой');
+      return response.json();
+    })
+    .then(function(data) {
+      var catalog = data.catalog_config;
+      var button = catalog && catalog.buttons && catalog.buttons.find(function(row) { return row.code === buttonCode && row.type === type; });
+      var available = [];
+      if (button) {
+        button.sections.forEach(function(section) {
+          section.groups.forEach(function(group) { group.items.forEach(function(item) { available.push(item); }); });
+        });
+      } else if (!catalog && type === 'skipass_topups' && buttonCode === 'legacy_skipass_topup') {
+        button = { code: buttonCode };
+        available = data.skipass_topup_tariffs || [];
+      }
+      var current = Boolean(button) && items.every(function(selected) {
+        return available.some(function(item) { return String(item.id) === String(selected.id) && Number(item.price) === Number(selected.price); });
+      });
+      if (!current) {
+        loadCategories();
+        showAlert('Каталог или цена изменились. Выберите тариф заново.');
+        return;
+      }
+      onValid();
+    })
+    .catch(function(error) { showAlert(error.message || 'Не удалось проверить каталог перед оплатой'); })
+    .finally(function() { terminalCatalogCheckoutCheckInFlight = false; });
+}
+
+function buildLegacySkipassTopupButton(tariffs) {
+  var groupsByCategory = {};
+  (tariffs || []).forEach(function(tariff) {
+    var key = String(tariff.category_id || 'other');
+    if (!groupsByCategory[key]) groupsByCategory[key] = { title: tariff.category_name || 'Скипассы', items: [] };
+    groupsByCategory[key].items.push(tariff);
+  });
+  var groups = Object.keys(groupsByCategory).map(function(key) { return groupsByCategory[key]; });
+  return {
+    code: 'legacy_skipass_topup', type: 'skipass_topups', title: TERMINAL_SKIPASS_TOPUP_SECTION_TITLE,
+    sections: groups.length ? [{ title: 'Тарифы', groups: groups }] : []
+  };
+}
+
+function terminalCatalogCard(item, onClick) {
+  var button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'terminal-custom-catalog__card';
+  var photo = document.createElement('span');
+  photo.className = 'terminal-custom-catalog__photo';
+  if (item.image_url) {
+    photo.style.backgroundImage = 'url("' + String(item.image_url).replace(/"/g, '%22') + '")';
+    photo.style.backgroundPosition = item.image_position || 'center';
+  }
+  var title = document.createElement('strong');
+  title.textContent = item.title;
+  button.appendChild(photo);
+  button.appendChild(title);
+  if (item.description) {
+    var description = document.createElement('small');
+    description.textContent = item.description;
+    button.appendChild(description);
+  }
+  button.addEventListener('click', onClick);
+  return button;
+}
+
+function applyTerminalCatalog(config) {
+  var previousButtonCode = activeTerminalCatalogButton && activeTerminalCatalogButton.code;
+  terminalCatalogConfig = config && Array.isArray(config.buttons) ? config : null;
+  document.body.classList.toggle('terminal-has-custom-catalog', Boolean(terminalCatalogConfig));
+  document.querySelectorAll('.header-logo-img, .splash-logo-img').forEach(function(logo) {
+    var label = logo.nextElementSibling;
+    if (!label || !label.classList.contains('terminal-config-brand')) {
+      label = document.createElement('span');
+      label.className = 'terminal-config-brand';
+      logo.insertAdjacentElement('afterend', label);
+    }
+    label.textContent = TERMINAL_SYSTEM_NAME || 'Терминал самообслуживания';
+  });
+  var section = document.getElementById('terminal-custom-catalog');
+  var grid = document.getElementById('terminal-custom-catalog-grid');
+  if (!section || !grid) return;
+  section.hidden = !terminalCatalogConfig;
+  grid.replaceChildren();
+
+  ['ticket-section', 'terminal-group-section', 'terminal-ski-section', 'terminal-visit-section'].forEach(function(id) {
+    var legacy = document.getElementById(id);
+    if (legacy) legacy.hidden = Boolean(terminalCatalogConfig);
+  });
+  if (!terminalCatalogConfig) {
+    activeTerminalCatalogButton = null;
+    terminalCatalogCart = {};
+    document.getElementById('terminal-skipass-scan').hidden = true;
+    document.getElementById('terminal-configured-topup').hidden = true;
+    document.querySelector('#screen-topup .topup-main-card').hidden = false;
+    var activeCatalogScreen = document.querySelector('#screen-catalog-tickets.active, #screen-catalog-folder.active, #screen-topup.active, #screen-scan-card.active');
+    if (activeCatalogScreen && typeof navigateTo === 'function') navigateTo('main');
+    return;
+  }
+
+  if (previousButtonCode) {
+    // A refresh may change tariffs or prices while a page is open. Never keep a stale cart.
+    activeTerminalCatalogButton = terminalCatalogConfig.buttons.find(function(button) { return button.code === previousButtonCode; }) || null;
+    terminalCatalogCart = {};
+    selectedSkipassTariff = null;
+    if (document.querySelector('#screen-catalog-tickets.active, #screen-catalog-folder.active, #screen-topup.active, #screen-scan-card.active')) navigateTo('main');
+  }
+
+  var folderCodes = {};
+  terminalCatalogConfig.folders.forEach(function(folder) {
+    folder.button_codes.forEach(function(code) { folderCodes[code] = true; });
+    grid.appendChild(terminalCatalogCard(folder, function() { openTerminalCatalogFolder(folder.code); }));
+  });
+  terminalCatalogConfig.buttons.forEach(function(button) {
+    if (!folderCodes[button.code]) grid.appendChild(terminalCatalogCard(button, function() { openTerminalCatalogButton(button.code, 'main'); }));
+  });
+  grid.classList.toggle('terminal-custom-catalog__grid--single', grid.children.length === 1);
+  if (!grid.children.length) {
+    var empty = document.createElement('p');
+    empty.className = 'terminal-custom-catalog__empty';
+    empty.textContent = 'Сейчас нет доступных услуг. Пожалуйста, обратитесь к сотруднику.';
+    grid.appendChild(empty);
+  }
+}
+
+function openTerminalCatalogFolder(code) {
+  if (!terminalCatalogConfig) return;
+  var folder = terminalCatalogConfig.folders.find(function(item) { return item.code === code; });
+  if (!folder) return;
+  document.getElementById('terminal-catalog-folder-title').textContent = folder.title;
+  var grid = document.getElementById('terminal-catalog-folder-grid');
+  grid.replaceChildren();
+  folder.button_codes.forEach(function(buttonCode) {
+    var button = terminalCatalogConfig.buttons.find(function(item) { return item.code === buttonCode; });
+    if (button) grid.appendChild(terminalCatalogCard(button, function() { openTerminalCatalogButton(button.code, 'catalog-folder'); }));
+  });
+  navigateTo('catalog-folder');
+}
+
+function openTerminalCatalogButton(code, returnScreen) {
+  if (!terminalCatalogConfig) return;
+  var button = terminalCatalogConfig.buttons.find(function(item) { return item.code === code; });
+  if (!button) return;
+  terminalCatalogReturnScreen = returnScreen || 'main';
+  if (button.type === 'tickets') {
+    activeTerminalCatalogButton = button;
+    activeTerminalCatalogSection = 0;
+    terminalCatalogCart = {};
+    renderTerminalCatalogTickets();
+    navigateTo('catalog-tickets');
+    updateTicketsTotal();
+    return;
+  }
+  if (button.type === 'skipass_topups') {
+    activeTerminalCatalogButton = button;
+    selectedSkipassCardId = '';
+    selectedSkipassTariff = null;
+    var cardInput = document.getElementById('terminal-skipass-card-id');
+    cardInput.value = '';
+    document.getElementById('terminal-skipass-scan').hidden = false;
+    navigateTo('scan-card');
+    cardInput.focus();
+    return;
+  }
+  activeTerminalCatalogButton = null;
+  if (button.type === 'rental') { openRentalActionModal(); return; }
+  if (button.type === 'visits') { handleVisitSectionClick(); return; }
+  if (button.type === 'groups') { handleGroupSectionClick(); return; }
+  if (button.type === 'individuals') { handleIndividualLessonsSectionClick(); }
+}
+
+function goBackFromCatalogTickets() { navigateTo(terminalCatalogReturnScreen); }
+function goBackFromTerminalService() { navigateTo(terminalCatalogConfig ? terminalCatalogReturnScreen : 'main'); }
+
+function handleScanCardTap(event) {
+  event.stopPropagation();
+  if (activeTerminalCatalogButton && activeTerminalCatalogButton.type === 'skipass_topups') {
+    document.getElementById('terminal-skipass-card-id').focus();
+  } else {
+    showAlert('Сначала выберите пополнение скипасса на главном экране');
+  }
+}
+
+function openSelectedSkipassTopup() {
+  if (!activeTerminalCatalogButton || activeTerminalCatalogButton.type !== 'skipass_topups') return;
+  var carrierId = document.getElementById('terminal-skipass-card-id').value.trim();
+  if (!carrierId || carrierId.length > 255) { showAlert('Сканируйте скипасс для пополнения'); return; }
+  selectedSkipassCardId = carrierId;
+  selectedSkipassTariff = null;
+  activeTerminalTopupSection = 0;
+  document.getElementById('terminal-configured-topup').hidden = false;
+  document.querySelector('#screen-topup .topup-main-card').hidden = true;
+  renderConfiguredSkipassTopup();
+  navigateTo('topup');
+}
+
+function renderConfiguredSkipassTopup() {
+  var button = activeTerminalCatalogButton;
+  if (!button || button.type !== 'skipass_topups') return;
+  document.getElementById('terminal-configured-topup-title').textContent = button.title;
+  document.getElementById('terminal-configured-topup-card').textContent = 'Скипасс: ' + selectedSkipassCardId;
+  var tabs = document.getElementById('terminal-configured-topup-tabs');
+  var groups = document.getElementById('terminal-configured-topup-groups');
+  tabs.replaceChildren(); groups.replaceChildren();
+  button.sections.forEach(function(section, index) {
+    var tab = document.createElement('button'); tab.type = 'button';
+    tab.className = 'terminal-catalog-tickets__tab' + (index === activeTerminalTopupSection ? ' is-active' : '');
+    tab.textContent = section.title;
+    tab.addEventListener('click', function() { activeTerminalTopupSection = index; selectedSkipassTariff = null; renderConfiguredSkipassTopup(); });
+    tabs.appendChild(tab);
+  });
+  var selected = button.sections[activeTerminalTopupSection];
+  if (!selected) return;
+  selected.groups.forEach(function(group) {
+    var section = document.createElement('section'); section.className = 'terminal-catalog-tickets__group';
+    if (group.title) { var heading = document.createElement('h2'); heading.textContent = group.title; section.appendChild(heading); }
+    group.items.forEach(function(tariff) {
+      if (!isTariffAvailableForToday(tariff, getTodayDayType())) return;
+      var card = document.createElement('button'); card.type = 'button';
+      card.className = 'terminal-configured-topup__tariff' + (selectedSkipassTariff && selectedSkipassTariff.id === tariff.id ? ' is-selected' : '');
+      var name = document.createElement('strong'); name.textContent = tariff.name;
+      var price = document.createElement('span'); price.textContent = formatPrice(Number(tariff.price)) + ' ₽';
+      card.append(name, price);
+      card.addEventListener('click', function() { selectedSkipassTariff = tariff; renderConfiguredSkipassTopup(); });
+      section.appendChild(card);
+    });
+    groups.appendChild(section);
+  });
+  var payButton = document.getElementById('terminal-configured-topup-pay');
+  payButton.disabled = !selectedSkipassTariff;
+  payButton.textContent = selectedSkipassTariff ? 'Оплатить ' + formatPrice(Number(selectedSkipassTariff.price)) + ' ₽' : 'Выберите тариф';
+}
+
+function startConfiguredSkipassTopupPayment() {
+  if (paymentInProgress) return;
+  if (!selectedSkipassCardId || !selectedSkipassTariff) { showAlert('Выберите тариф и сканируйте скипасс'); return; }
+  var buttonCode = activeTerminalCatalogButton.code;
+  var selected = selectedSkipassTariff;
+  verifyTerminalCatalogCheckout(buttonCode, 'skipass_topups', [{ id: selected.id, price: selected.price }], function() {
+    if (!document.getElementById('screen-topup').classList.contains('active') ||
+        !activeTerminalCatalogButton || activeTerminalCatalogButton.code !== buttonCode ||
+        !selectedSkipassTariff || selectedSkipassTariff.id !== selected.id) return;
+    paymentSourceScreen = 'skipass-topup';
+    pendingCartItems = [{ name: selected.name, price: Number(selected.price), qty: 1 }];
+    pendingCartTotal = Number(selected.price);
+    renderPaymentSummary();
+    navigateTo('payment');
+    if (pendingCartTotal === 0) completePayment('Без оплаты');
+    else payByCard();
+  });
+}
+
+function renderTerminalCatalogTickets() {
+  var button = activeTerminalCatalogButton;
+  if (!button) return;
+  document.getElementById('terminal-catalog-tickets-title').textContent = button.title;
+  document.getElementById('terminal-catalog-tickets-description').textContent = button.description || '';
+  var tabs = document.getElementById('terminal-catalog-tickets-tabs');
+  var groups = document.getElementById('terminal-catalog-tickets-groups');
+  tabs.replaceChildren();
+  groups.replaceChildren();
+  button.sections.forEach(function(section, index) {
+    var tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'terminal-catalog-tickets__tab' + (index === activeTerminalCatalogSection ? ' is-active' : '');
+    tab.textContent = section.title;
+    tab.addEventListener('click', function() { activeTerminalCatalogSection = index; renderTerminalCatalogTickets(); });
+    tabs.appendChild(tab);
+  });
+  var selected = button.sections[activeTerminalCatalogSection];
+  if (!selected) return;
+  selected.groups.forEach(function(group, groupIndex) {
+    var container = document.createElement('section');
+    container.className = 'terminal-catalog-tickets__group';
+    if (group.title) {
+      var heading = document.createElement('h2');
+      heading.textContent = group.title;
+      container.appendChild(heading);
+    }
+    group.items.forEach(function(tariff, tariffIndex) {
+      if (!isTariffAvailableForToday(tariff, getTodayDayType())) return;
+      var row = document.createElement('div');
+      row.className = 'tkt-row terminal-catalog-tickets__row';
+      row.dataset.price = tariff.price;
+      row.dataset.tariffId = tariff.id;
+      row.dataset.categoryId = tariff.category_id;
+      row.dataset.dayType = tariff.day_type || '';
+      row.dataset.age = tariff.age || '';
+      var cartKey = activeTerminalCatalogSection + ':' + groupIndex + ':' + tariffIndex;
+      row.dataset.cartKey = cartKey;
+      var label = document.createElement('span');
+      label.className = 'tkt-pill';
+      label.textContent = tariff.name;
+      if (tariff.image_url) {
+        var image = document.createElement('span');
+        image.className = 'terminal-catalog-tickets__image';
+        image.style.backgroundImage = 'url("' + String(tariff.image_url).replace(/"/g, '%22') + '")';
+        image.style.backgroundPosition = tariff.image_position || 'center';
+        row.appendChild(image);
+      }
+      var price = document.createElement('span');
+      price.className = 'tkt-price';
+      price.textContent = formatPrice(Number(tariff.price)) + ' ₽';
+      var counter = document.createElement('div');
+      counter.className = 'tkt-counter';
+      var minus = document.createElement('button');
+      minus.className = 'tkt-counter-btn tkt-counter-btn--minus';
+      minus.type = 'button'; minus.textContent = '−';
+      minus.addEventListener('click', function() { changeQty(minus, -1); });
+      var value = document.createElement('span');
+      value.className = 'tkt-counter-val'; value.textContent = String(terminalCatalogCart[cartKey] || 0);
+      if (terminalCatalogCart[cartKey]) row.classList.add('tkt-row--selected');
+      var plus = document.createElement('button');
+      plus.className = 'tkt-counter-btn tkt-counter-btn--plus';
+      plus.type = 'button'; plus.textContent = '+';
+      plus.addEventListener('click', function() { changeQty(plus, 1); });
+      counter.append(minus, value, plus);
+      row.append(label, price, counter);
+      container.appendChild(row);
+    });
+    groups.appendChild(container);
+  });
+  updateTicketsTotal();
+}
 
 // === Auto-translate API text via MyMemory (free, no key) ===
 var TRANSLATE_LANGMAP = { en: 'ru|en', ar: 'ru|ar', zh: 'ru|zh-CN' };
@@ -340,7 +682,7 @@ function loadSystemVersionInfo() {
       if (typeof data.version === 'string' && data.version.trim()) {
         TERMINAL_SYSTEM_VERSION = data.version.trim();
       }
-      if (typeof data.terminal_name === 'string' && data.terminal_name.trim()) {
+      if (!terminalConfigReady && typeof data.terminal_name === 'string' && data.terminal_name.trim()) {
         TERMINAL_SYSTEM_NAME = data.terminal_name.trim();
       }
     } catch (e) {
@@ -395,6 +737,7 @@ function setTerminalConfigState(status, title, details) {
 }
 
 function hideTerminalCommerceSections() {
+  applyTerminalCatalog(null);
   terminalConfigReady = false;
   loadedCategories = [];
   loadedVisitLocations = [];
@@ -682,7 +1025,17 @@ function handleSkipassTopupSectionClick() {
     return;
   }
 
+  if (!legacySkipassTopupButton || !legacySkipassTopupButton.sections.length) {
+    showAlert('Нет доступных тарифов для пополнения скипасса');
+    return;
+  }
+  activeTerminalCatalogButton = legacySkipassTopupButton;
+  selectedSkipassCardId = '';
+  selectedSkipassTariff = null;
+  document.getElementById('terminal-skipass-card-id').value = '';
+  document.getElementById('terminal-skipass-scan').hidden = false;
   navigateTo('scan-card');
+  document.getElementById('terminal-skipass-card-id').focus();
 }
 
 function handleVisitSectionClick(locationId) {
@@ -2861,6 +3214,10 @@ function loadCategories() {
 
       terminalConfigReady = true;
       setTerminalConfigState('ready');
+      if (typeof data.terminal_name === 'string' && data.terminal_name.trim()) {
+        TERMINAL_SYSTEM_NAME = data.terminal_name.trim();
+        applySystemVersionInfo();
+      }
 
       // Save day types calendar (overwrite each time)
       if (data.day_types_calendar && data.day_types_calendar.length > 0) {
@@ -2869,7 +3226,10 @@ function loadCategories() {
       }
       TERMINAL_CAROUSEL_ENABLED = data.carousel_enabled !== false;
       TERMINAL_CAROUSEL_IMAGES = TERMINAL_CAROUSEL_ENABLED ? getCarouselImageSources(data.carousel_images || []) : [];
-      TERMINAL_TICKET_SECTION_ENABLED = data.ticket_section_enabled === true && data.categories.length > 0;
+      var configuredTicketButton = data.catalog_config && Array.isArray(data.catalog_config.buttons) &&
+        data.catalog_config.buttons.some(function(button) { return button.type === 'tickets'; });
+      TERMINAL_TICKET_SECTION_ENABLED = data.ticket_section_enabled === true &&
+        (data.catalog_config ? configuredTicketButton : data.categories.length > 0);
       TERMINAL_TICKET_SECTION_TITLE = (typeof data.ticket_section_title === 'string' && data.ticket_section_title.trim())
         ? data.ticket_section_title.trim()
         : 'Билеты';
@@ -2877,6 +3237,7 @@ function loadCategories() {
       TERMINAL_SKIPASS_TOPUP_SECTION_TITLE = (typeof data.skipass_topup_section_title === 'string' && data.skipass_topup_section_title.trim())
         ? data.skipass_topup_section_title.trim()
         : 'Пополнение скипасса';
+      legacySkipassTopupButton = buildLegacySkipassTopupButton(data.skipass_topup_tariffs);
       TERMINAL_SKIPASS_TOPUP_IMAGE = getImageSource(data.skipass_topup_image || '');
       TERMINAL_RENTAL_SECTION_ENABLED = data.rental_section_enabled === true;
       TERMINAL_RENTAL_SECTION_TITLE = (typeof data.rental_section_title === 'string' && data.rental_section_title.trim())
@@ -2932,6 +3293,7 @@ function loadCategories() {
         loadedCategories = [];
         renderCategories([]);
       }
+      applyTerminalCatalog(data.catalog_config || null);
     } catch (e) {
       console.error('[API] Parse error:', e);
       markTerminalConfigUnavailable(
@@ -3191,7 +3553,10 @@ const screenMap = {
   'instructors': 'screen-instructors',
   'payment': 'screen-payment',
   'sbp': 'screen-sbp',
-  'success': 'screen-success'
+  'success': 'screen-success',
+  'catalog-tickets': 'screen-catalog-tickets',
+  'catalog-folder': 'screen-catalog-folder',
+  'registration-error': 'screen-registration-error'
 };
 
 function navigateTo(screenName) {
@@ -3297,6 +3662,9 @@ function changeQty(btn, delta) {
   let val = parseInt(valueEl.textContent) + delta;
   if (val < 0) val = 0;
   valueEl.textContent = val;
+  if (row.dataset.cartKey && document.getElementById('screen-catalog-tickets').classList.contains('active')) {
+    terminalCatalogCart[row.dataset.cartKey] = val;
+  }
 
   if (val > 0) {
     row.classList.add('tkt-row--selected');
@@ -3310,6 +3678,7 @@ function changeQty(btn, delta) {
 function updateTicketsTotal() {
   // Find currently active ticket screen
   var screens = [
+    { id: 'screen-catalog-tickets', totalId: 'terminal-catalog-tickets-total', hasCombo: false },
     { id: 'screen-tickets', totalId: 'tickets-total', hasCombo: true },
     { id: 'screen-alpaka', totalId: 'alpaka-total', hasCombo: false },
     { id: 'screen-museum', totalId: 'museum-total', hasCombo: false },
@@ -3322,7 +3691,17 @@ function updateTicketsTotal() {
 
     var rows = screen.querySelectorAll('.tkt-row');
     var total = 0;
+    if (screens[s].id === 'screen-catalog-tickets' && activeTerminalCatalogButton) {
+      activeTerminalCatalogButton.sections.forEach(function(section, sectionIndex) {
+        section.groups.forEach(function(group, groupIndex) {
+          group.items.forEach(function(item, itemIndex) {
+            total += Number(item.price) * (terminalCatalogCart[sectionIndex + ':' + groupIndex + ':' + itemIndex] || 0);
+          });
+        });
+      });
+    }
     rows.forEach(function(row) {
+      if (screens[s].id === 'screen-catalog-tickets') return;
       var price = parseInt(row.dataset.price);
       var qty = parseInt(row.querySelector('.tkt-counter-val').textContent);
       total += price * qty;
@@ -3692,6 +4071,19 @@ let paymentAbortController = null;
 
 // Collect selected items from any ticket screen
 function collectTicketItems(screenId) {
+  if (screenId === 'screen-catalog-tickets' && activeTerminalCatalogButton) {
+    var configuredItems = [];
+    activeTerminalCatalogButton.sections.forEach(function(section, sectionIndex) {
+      section.groups.forEach(function(group, groupIndex) {
+        group.items.forEach(function(item, itemIndex) {
+          var qty = terminalCatalogCart[sectionIndex + ':' + groupIndex + ':' + itemIndex] || 0;
+          if (qty > 0) configuredItems.push({ name: item.name, price: Number(item.price), qty: qty,
+            tariffId: item.id, categoryId: item.category_id, dayType: item.day_type, age: item.age });
+        });
+      });
+    });
+    return configuredItems;
+  }
   const items = [];
   document.querySelectorAll('#' + screenId + ' .tkt-row').forEach(row => {
     const qty = parseInt(row.querySelector('.tkt-counter-val').textContent);
@@ -3741,8 +4133,9 @@ function calculateTotal(items) {
 
 // Step 1: User clicks ОПЛАТИТЬ → collect cart, show payment methods
 function processPayment() {
+  if (terminalCatalogCheckoutCheckInFlight || paymentInProgress) return;
   // Determine which screen is active
-  var ticketScreens = ['tickets', 'alpaka', 'museum', 'skypark'];
+  var ticketScreens = ['catalog-tickets', 'tickets', 'alpaka', 'museum', 'skypark'];
   paymentSourceScreen = null;
   pendingCartItems = [];
 
@@ -3783,13 +4176,30 @@ function processPayment() {
       var row = document.createElement('div');
       row.className = 'pay-order-row';
       row.innerHTML = '<div class="pay-order-row-name"><span class="pay-order-dot"></span><span class="pay-order-row-label">' +
-        item.name + ' × ' + item.qty + '</span></div><span class="pay-order-row-price">' +
+        escapeHtml(item.name) + ' × ' + item.qty + '</span></div><span class="pay-order-row-price">' +
         formatPrice(item.price * item.qty) + ' ₽</span>';
       orderItems.appendChild(row);
     });
   }
 
-  // Navigate to payment screen then immediately start card payment
+  // Re-check configured tariff prices before charging a card.
+  if (paymentSourceScreen === 'catalog-tickets' && activeTerminalCatalogButton) {
+    var buttonCode = activeTerminalCatalogButton.code;
+    var selected = pendingCartItems.map(function(item) { return { id: item.tariffId, price: item.price }; });
+    verifyTerminalCatalogCheckout(buttonCode, 'tickets', selected, function() {
+      if (!document.getElementById('screen-catalog-tickets').classList.contains('active') ||
+          !activeTerminalCatalogButton || activeTerminalCatalogButton.code !== buttonCode) return;
+      var currentItems = collectTicketItems('screen-catalog-tickets');
+      if (JSON.stringify(currentItems) !== JSON.stringify(pendingCartItems)) {
+        showAlert('Выбор билетов изменился. Нажмите «Оплатить» ещё раз.');
+        return;
+      }
+      navigateTo('payment');
+      payByCard();
+    });
+    return;
+  }
+
   navigateTo('payment');
   payByCard();
 }
@@ -3817,6 +4227,11 @@ function goBackFromPayment() {
     cancelPendingVisitHold();
     navigateTo('visits');
     loadVisitAvailability();
+    return;
+  }
+
+  if (paymentSourceScreen === 'skipass-topup') {
+    navigateTo('topup');
     return;
   }
 
@@ -4019,9 +4434,9 @@ function registerTicketsInEskimos(paymentCode, callback) {
   xhr.onload = function() {
     try {
       var data = JSON.parse(xhr.responseText);
-      if (data.error) {
+      if (xhr.status < 200 || xhr.status >= 300 || data.error || data.status === 'error') {
         console.error('[ESKIMOS] Error:', data.message);
-        callback(null, data.message);
+        callback(null, data.message || 'Сервер не подтвердил продажу билетов');
       } else {
         console.log('[ESKIMOS] Tickets created:', data);
         // Extract ticket_codes from response
@@ -4032,7 +4447,11 @@ function registerTicketsInEskimos(paymentCode, callback) {
             if (code) ticketCodes.push(code);
           });
         }
-        callback(ticketCodes, null);
+        if (ticketCodes.length !== tickets.length) {
+          callback(null, 'Продажа зарегистрирована, но сервер не вернул все коды билетов. Не печатайте повторно; обратитесь к сотруднику.');
+        } else {
+          callback(ticketCodes, null);
+        }
       }
     } catch (e) {
       console.error('[ESKIMOS] Parse error:', e);
@@ -4051,6 +4470,10 @@ function registerTicketsInEskimos(paymentCode, callback) {
 }
 
 function completePayment(paymentMethod) {
+  if (paymentSourceScreen === 'skipass-topup') {
+    completeConfiguredSkipassTopup(paymentMethod);
+    return;
+  }
   if (paymentSourceScreen === 'rental-order') {
     completeRentalOrderPayment(paymentMethod);
     return;
@@ -4082,7 +4505,9 @@ function completePayment(paymentMethod) {
   // Register tickets in Eskimos first, then create and print
   registerTicketsInEskimos(paymentCode, function(ticketCodes, error) {
     if (error) {
-      console.warn('[ESKIMOS] Registration failed, printing local tickets:', error);
+      console.error('[ESKIMOS] Ticket registration failed:', error);
+      showTerminalRegistrationError(error, paymentCode);
+      return;
     }
 
     // Create one ticket per item unit, using Eskimos ticket_codes for QR
@@ -4122,6 +4547,62 @@ function completePayment(paymentMethod) {
     // Safety: if printing hangs, proceed after 8 seconds
     setTimeout(onPrintFinished, 8000);
   });
+}
+
+function showTerminalRegistrationError(error, paymentCode) {
+  hidePrintLoader();
+  hidePaymentLoader();
+  document.getElementById('terminal-registration-error-code').textContent = paymentCode || '—';
+  document.getElementById('terminal-registration-error-details').textContent = error || '';
+  navigateTo('registration-error');
+}
+
+function completeConfiguredSkipassTopup(paymentMethod) {
+  if (!selectedSkipassTariff || !selectedSkipassCardId) {
+    showTerminalRegistrationError('Не выбран тариф или скипасс', '—');
+    return;
+  }
+  var paymentCode = generatePaymentCode();
+  lastPaymentCode = paymentCode;
+  lastPaymentMethod = paymentMethod;
+  var amount = Number(selectedSkipassTariff.price);
+  showPaymentLoader('Подтверждаем пополнение скипасса...');
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', LOCAL_SERVER + '/api/skipass-topup/create', true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.timeout = 15000;
+  xhr.onload = function() {
+    try {
+      var data = JSON.parse(xhr.responseText);
+      if (xhr.status < 200 || xhr.status >= 300 || !data.transaction || !data.transaction.tickets || !data.transaction.tickets.length) {
+        throw new Error(data.message || 'Сервер не подтвердил пополнение');
+      }
+      if (data.transaction.tickets.some(function(ticket) { return !ticket.ticket_code && !ticket.ticket_number; })) {
+        throw new Error('Пополнение зарегистрировано, но сервер не вернул код скипасса. Обратитесь к сотруднику.');
+      }
+      pendingTickets = data.transaction.tickets.map(function(registered) {
+        var ticket = TicketService.createTicket([{ name: selectedSkipassTariff.name, price: amount, qty: 1 }], amount, paymentMethod);
+        ticket.qrCode = registered.ticket_code || registered.ticket_number;
+        return ticket;
+      });
+      hidePaymentLoader();
+      showPrintLoader();
+      printAllTickets(function() {
+        hidePrintLoader();
+        navigateTo('success');
+        showReceiptInline();
+      });
+    } catch (error) {
+      console.error('[SKIPASS] Confirmation failed:', error);
+      showTerminalRegistrationError(error.message, paymentCode);
+    }
+  };
+  xhr.onerror = function() { showTerminalRegistrationError('Нет связи с сервером', paymentCode); };
+  xhr.ontimeout = function() { showTerminalRegistrationError('Сервер не ответил вовремя', paymentCode); };
+  xhr.send(JSON.stringify({ transaction: {
+    terminal_order_id: 'TOPUP-' + Date.now(), terminal_payment_code: paymentCode, sum: amount,
+    cards: [{ carrier_type: 'card', carrier_id: selectedSkipassCardId, items: [{ tariff_id: Number(selectedSkipassTariff.id) }] }]
+  } }));
 }
 
 function completeRentalOrderPayment(paymentMethod) {
